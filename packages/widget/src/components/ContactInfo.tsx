@@ -1,17 +1,130 @@
 import { h } from 'preact';
-import { prevStep, nextStep } from '../state/form';
+import { signal } from '@preact/signals';
+import { formData, updateField, prevStep, nextStep, estimateResult, isLoading } from '../state/form';
+import { submitEstimate } from '../api/client';
 
-export function ContactInfo({ companyName }: { companyName: string }) {
+const errors = signal<Record<string, string>>({});
+const submitError = signal<string | null>(null);
+
+export function ContactInfo({ companyName, companyId }: { companyName: string; companyId: string }) {
+  const data = formData.value;
+  const fieldErrors = errors.value;
+
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+    if (!data.firstName.trim()) errs.firstName = 'First name is required';
+    if (!data.lastName.trim()) errs.lastName = 'Last name is required';
+    if (!data.email.trim()) {
+      errs.email = 'Email is required';
+    } else if (!data.email.includes('@')) {
+      errs.email = 'Enter a valid email address';
+    }
+    if (!data.phone.trim()) {
+      errs.phone = 'Phone number is required';
+    } else if (data.phone.replace(/\D/g, '').length < 7) {
+      errs.phone = 'Enter a valid phone number';
+    }
+    if (!data.consent) errs.consent = 'You must provide consent to continue';
+    errors.value = errs;
+    return Object.keys(errs).length === 0;
+  }
+
+  async function handleSubmit() {
+    if (!validate()) return;
+    submitError.value = null;
+    isLoading.value = true;
+    try {
+      const result = await submitEstimate({
+        sqft: Number(data.sqft),
+        pitch: data.pitch,
+        material: data.material,
+        companyId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        consent: data.consent,
+      });
+      estimateResult.value = result;
+      nextStep();
+    } catch (err: any) {
+      submitError.value = err.message || 'Failed to submit estimate';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   return (
     <div>
       <div class="rc-step-title">Your Contact Information</div>
-      <p>Contact form fields will be added.</p>
+
+      <div class="rc-field">
+        <input
+          type="text"
+          class="rc-input"
+          placeholder="First Name"
+          value={data.firstName}
+          onInput={(e) => updateField('firstName', (e.target as HTMLInputElement).value)}
+        />
+        {fieldErrors.firstName && <div class="rc-error">{fieldErrors.firstName}</div>}
+      </div>
+
+      <div class="rc-field">
+        <input
+          type="text"
+          class="rc-input"
+          placeholder="Last Name"
+          value={data.lastName}
+          onInput={(e) => updateField('lastName', (e.target as HTMLInputElement).value)}
+        />
+        {fieldErrors.lastName && <div class="rc-error">{fieldErrors.lastName}</div>}
+      </div>
+
+      <div class="rc-field">
+        <input
+          type="email"
+          class="rc-input"
+          placeholder="Email Address"
+          value={data.email}
+          onInput={(e) => updateField('email', (e.target as HTMLInputElement).value)}
+        />
+        {fieldErrors.email && <div class="rc-error">{fieldErrors.email}</div>}
+      </div>
+
+      <div class="rc-field">
+        <input
+          type="tel"
+          class="rc-input"
+          placeholder="Phone Number"
+          value={data.phone}
+          onInput={(e) => updateField('phone', (e.target as HTMLInputElement).value)}
+        />
+        {fieldErrors.phone && <div class="rc-error">{fieldErrors.phone}</div>}
+      </div>
+
+      <div class="rc-field rc-consent">
+        <label class="rc-consent-label">
+          <input
+            type="checkbox"
+            checked={data.consent}
+            onChange={(e) => updateField('consent', (e.target as HTMLInputElement).checked)}
+          />
+          <span>
+            I consent to receive communications from <strong>{companyName}</strong> regarding my
+            roofing estimate. I understand that consent is not a condition of purchase.
+          </span>
+        </label>
+        {fieldErrors.consent && <div class="rc-error">{fieldErrors.consent}</div>}
+      </div>
+
+      {submitError.value && <div class="rc-error">{submitError.value}</div>}
+
       <div class="rc-btn-row">
         <button class="rc-btn-secondary" onClick={prevStep}>
           Back
         </button>
-        <button class="rc-btn-primary" onClick={nextStep}>
-          Next
+        <button class="rc-btn-primary" onClick={handleSubmit} disabled={isLoading.value}>
+          {isLoading.value ? 'Submitting...' : 'Get My Estimate'}
         </button>
       </div>
     </div>

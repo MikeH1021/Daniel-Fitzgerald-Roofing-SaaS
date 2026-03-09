@@ -1,16 +1,36 @@
 import { h } from 'preact';
-import { estimateResult, currentStep } from '../state/form';
+import { estimateResult, currentStep, isLoading, formData } from '../state/form';
 
 function formatCurrency(amount: number): string {
   return '$' + amount.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
 export function EstimateDisplay() {
+  if (isLoading.value) {
+    return (
+      <div>
+        <div class="rc-step-title">Your Estimate</div>
+        <div class="rc-loading">Calculating your estimate...</div>
+      </div>
+    );
+  }
+
   const result = estimateResult.value;
 
   function handleStartOver() {
     currentStep.value = 0;
     estimateResult.value = null;
+    isLoading.value = false;
+    formData.value = {
+      sqft: '',
+      pitch: '',
+      material: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      consent: false,
+    };
   }
 
   if (!result) {

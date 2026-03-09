@@ -47,7 +47,7 @@ export function App({ companyId }: { companyId: string }) {
         <img class="rc-logo" src={config.logoUrl} alt={config.name} />
       )}
       {currentStep.value === 0 && <RoofDetails />}
-      {currentStep.value === 1 && <ContactInfo companyName={config.name} />}
+      {currentStep.value === 1 && <ContactInfo companyName={config.name} companyId={companyId} />}
       {currentStep.value === 2 && <EstimateDisplay />}
     </div>
   );
