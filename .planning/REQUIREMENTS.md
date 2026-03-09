@@ -85,30 +85,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EST-01 | — | Pending |
-| EST-02 | — | Pending |
-| EST-03 | — | Pending |
-| EST-04 | — | Pending |
-| EST-05 | — | Pending |
-| EST-06 | — | Pending |
-| LEAD-01 | — | Pending |
-| LEAD-02 | — | Pending |
-| LEAD-03 | — | Pending |
-| WIDG-01 | — | Pending |
-| WIDG-02 | — | Pending |
-| WIDG-03 | — | Pending |
-| WIDG-04 | — | Pending |
-| WIDG-05 | — | Pending |
-| ADMN-01 | — | Pending |
-| ADMN-02 | — | Pending |
-| ADMN-03 | — | Pending |
-| ADMN-04 | — | Pending |
+| EST-01 | Phase 1 | Pending |
+| EST-02 | Phase 1 | Pending |
+| EST-03 | Phase 1 | Pending |
+| EST-04 | Phase 1 | Pending |
+| EST-05 | Phase 1 | Pending |
+| EST-06 | Phase 1 | Pending |
+| LEAD-01 | Phase 2 | Pending |
+| LEAD-02 | Phase 2 | Pending |
+| LEAD-03 | Phase 3 | Pending |
+| WIDG-01 | Phase 2 | Pending |
+| WIDG-02 | Phase 2 | Pending |
+| WIDG-03 | Phase 2 | Pending |
+| WIDG-04 | Phase 2 | Pending |
+| WIDG-05 | Phase 2 | Pending |
+| ADMN-01 | Phase 4 | Pending |
+| ADMN-02 | Phase 4 | Pending |
+| ADMN-03 | Phase 4 | Pending |
+| ADMN-04 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-09*
-*Last updated: 2026-03-09 after initial definition*
+*Last updated: 2026-03-09 after roadmap creation*
