@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 01-02-PLAN.md (Phase 1 complete)
-last_updated: "2026-03-09T21:19:13.736Z"
-last_activity: 2026-03-09 -- Completed 01-02 (API endpoints + validation)
+status: in-progress
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-09T23:46:23Z"
+last_activity: 2026-03-09 -- Completed 02-01 (Widget scaffold + Shadow DOM + branding)
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_plans: 4
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -21,32 +21,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Homeowners get an instant, credible roof estimate -- and the roofing company captures a qualified lead with contact info and project details.
-**Current focus:** Phase 1: API + Estimate Engine
+**Current focus:** Phase 2: Embeddable Widget
 
 ## Current Position
 
-Phase: 1 of 4 (API + Estimate Engine) -- COMPLETE
-Plan: 2 of 2 in current phase (all plans complete)
-Status: Phase 1 Complete
-Last activity: 2026-03-09 -- Completed 01-02 (API endpoints + validation)
+Phase: 2 of 4 (Embeddable Widget)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-03-09 -- Completed 02-01 (Widget scaffold + Shadow DOM + branding)
 
-Progress: [██████████] 100% (Phase 1)
+Progress: [████████░░] 75% (3/4 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 3 min
-- Total execution time: 0.1 hours
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-api-estimate-engine | 2 | 6 min | 3 min |
+| 02-embeddable-widget | 1 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4m), 01-02 (2m)
+- Last 5 plans: 01-01 (4m), 01-02 (2m), 02-01 (4m)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -62,6 +63,9 @@ Recent decisions affecting current work:
 - Complexity multiplier set to 1.0 for v1; formula includes it for v2 future-proofing (01-01)
 - Unknown companyId silently falls back to default pricing with configSource: 'default' (01-02)
 - Override merge strategy: per-material cost replacement, per-field pitch multiplier override (01-02)
+- Added terser as explicit devDependency for Vite 6 IIFE minification (02-01)
+- Enabled css:true in vitest config for ?inline CSS import support in tests (02-01)
+- No form elements in widget: use div+button to avoid host page form submission issues (02-01)
 
 ### Pending Todos
 
@@ -76,5 +80,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-09
-Stopped at: Completed 01-02-PLAN.md (Phase 1 complete)
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None

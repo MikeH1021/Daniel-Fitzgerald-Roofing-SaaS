@@ -24,11 +24,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Widget & Embed
 
-- [ ] **WIDG-01**: Widget embeddable via single script tag with company ID attribute
-- [ ] **WIDG-02**: Widget renders inside Shadow DOM for CSS isolation from host site
-- [ ] **WIDG-03**: Widget is fully responsive and usable on mobile devices
-- [ ] **WIDG-04**: Widget displays company logo and primary brand color
-- [ ] **WIDG-05**: Widget follows multi-step flow: roof details → contact info → estimate display
+- [x] **WIDG-01**: Widget embeddable via single script tag with company ID attribute
+- [x] **WIDG-02**: Widget renders inside Shadow DOM for CSS isolation from host site
+- [x] **WIDG-03**: Widget is fully responsive and usable on mobile devices
+- [x] **WIDG-04**: Widget displays company logo and primary brand color
+- [x] **WIDG-05**: Widget follows multi-step flow: roof details → contact info → estimate display
 
 ### Admin Settings
 
@@ -94,11 +94,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LEAD-01 | Phase 2 | Pending |
 | LEAD-02 | Phase 2 | Pending |
 | LEAD-03 | Phase 3 | Pending |
-| WIDG-01 | Phase 2 | Pending |
-| WIDG-02 | Phase 2 | Pending |
-| WIDG-03 | Phase 2 | Pending |
-| WIDG-04 | Phase 2 | Pending |
-| WIDG-05 | Phase 2 | Pending |
+| WIDG-01 | Phase 2 | Complete |
+| WIDG-02 | Phase 2 | Complete |
+| WIDG-03 | Phase 2 | Complete |
+| WIDG-04 | Phase 2 | Complete |
+| WIDG-05 | Phase 2 | Complete |
 | ADMN-01 | Phase 4 | Pending |
 | ADMN-02 | Phase 4 | Pending |
 | ADMN-03 | Phase 4 | Pending |
