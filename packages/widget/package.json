@@ -1,0 +1,23 @@
+{
+  "name": "roofing-widget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@preact/signals": "^1",
+    "preact": "^10"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2",
+    "jsdom": "^25",
+    "terser": "^5.46.0",
+    "typescript": "^5.7",
+    "vite": "^6",
+    "vitest": "~2.1"
+  }
+}
