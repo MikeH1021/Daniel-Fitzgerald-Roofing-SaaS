@@ -44,11 +44,11 @@ Plans:
   3. Widget displays the roofing company's logo and primary brand color fetched from the API
   4. Widget is fully usable on mobile devices (all inputs reachable, no horizontal scroll, tap targets adequate)
   5. Consent checkbox is unchecked by default and names the specific roofing company
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Widget package scaffold, Shadow DOM entry, multi-step form UI with branding
+- [ ] 02-02-PLAN.md -- API lead capture extension and contact form with TCPA consent
 
 ### Phase 3: Lead Delivery
 **Goal**: Roofing companies receive reliable email notifications with full lead details whenever a homeowner submits the widget
@@ -86,6 +86,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. API + Estimate Engine | 2/2 | Complete | 2026-03-09 |
-| 2. Embeddable Widget | 0/0 | Not started | - |
+| 2. Embeddable Widget | 0/2 | In progress | - |
 | 3. Lead Delivery | 0/0 | Not started | - |
 | 4. Admin Settings | 0/0 | Not started | - |
