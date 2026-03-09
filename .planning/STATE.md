@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-09T23:46:23Z"
-last_activity: 2026-03-09 -- Completed 02-01 (Widget scaffold + Shadow DOM + branding)
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-09T23:52:29Z"
+last_activity: 2026-03-09 -- Completed 02-02 (Lead capture + contact form + TCPA consent)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -25,17 +25,17 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 ## Current Position
 
-Phase: 2 of 4 (Embeddable Widget)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-09 -- Completed 02-01 (Widget scaffold + Shadow DOM + branding)
+Phase: 2 of 4 (Embeddable Widget) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-03-09 -- Completed 02-02 (Lead capture + contact form + TCPA consent)
 
-Progress: [████████░░] 75% (3/4 plans)
+Progress: [██████████] 100% (4/4 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 3 min
 - Total execution time: 0.2 hours
 
@@ -44,10 +44,10 @@ Progress: [████████░░] 75% (3/4 plans)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-api-estimate-engine | 2 | 6 min | 3 min |
-| 02-embeddable-widget | 1 | 4 min | 4 min |
+| 02-embeddable-widget | 2 | 7 min | 3.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4m), 01-02 (2m), 02-01 (4m)
+- Last 5 plans: 01-01 (4m), 01-02 (2m), 02-01 (4m), 02-02 (3m)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -66,6 +66,9 @@ Recent decisions affecting current work:
 - Added terser as explicit devDependency for Vite 6 IIFE minification (02-01)
 - Enabled css:true in vitest config for ?inline CSS import support in tests (02-01)
 - No form elements in widget: use div+button to avoid host page form submission issues (02-01)
+- Used zod superRefine for conditional all-or-nothing contact field validation (02-02)
+- Consent text generated server-side with company name lookup for TCPA compliance (02-02)
+- Lead storage is a side effect of estimate POST -- no separate endpoint needed (02-02)
 
 ### Pending Todos
 
@@ -80,5 +83,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-09
-Stopped at: Completed 02-01-PLAN.md
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
