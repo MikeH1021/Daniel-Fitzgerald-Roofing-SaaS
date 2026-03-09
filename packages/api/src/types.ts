@@ -19,4 +19,9 @@ export interface EstimateRequest {
   pitch: 'flat' | 'low' | 'medium' | 'steep';
   material: '3-tab' | 'architectural' | 'standing-seam-metal';
   companyId: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  consent?: boolean;
 }

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { eq } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { estimateRequestSchema } from '../validation/schemas';
 import { calculateEstimate } from '../engine/calculate';
 import {
@@ -9,7 +10,7 @@ import {
   DEFAULT_COMPLEXITY_MULTIPLIER,
 } from '../engine/defaults';
 import { createDb } from '../db';
-import { pricingOverrides } from '../db/schema';
+import { pricingOverrides, companies, leads } from '../db/schema';
 import type { Bindings, PricingConfig } from '../types';
 
 const estimates = new Hono<{ Bindings: Bindings }>();
@@ -31,7 +32,8 @@ estimates.post(
     }
   }),
   async (c) => {
-    const { sqft, pitch, material, companyId } = c.req.valid('json');
+    const validated = c.req.valid('json');
+    const { sqft, pitch, material, companyId } = validated;
 
     // Build pricing config starting from defaults
     const config: PricingConfig = {
@@ -70,6 +72,37 @@ estimates.post(
     }
 
     const result = calculateEstimate(sqft, pitch, material, config);
+
+    // Store lead if contact fields provided with consent
+    if (validated.firstName && validated.lastName && validated.email && validated.phone && validated.consent) {
+      // Look up company name for consent text
+      let companyName = 'the roofing company';
+      const companyRows = await db
+        .select({ name: companies.name })
+        .from(companies)
+        .where(eq(companies.id, companyId));
+      if (companyRows.length > 0) {
+        companyName = companyRows[0].name;
+      }
+
+      const consentText = `I consent to receive communications from ${companyName} regarding my roofing estimate. I understand that consent is not a condition of purchase.`;
+
+      await db.insert(leads).values({
+        id: nanoid(),
+        companyId,
+        firstName: validated.firstName,
+        lastName: validated.lastName,
+        email: validated.email,
+        phone: validated.phone,
+        consentGiven: true,
+        consentText,
+        sqft,
+        pitch,
+        material,
+        estimateLow: result.estimateLow,
+        estimateHigh: result.estimateHigh,
+      });
+    }
 
     return c.json({
       ...result,

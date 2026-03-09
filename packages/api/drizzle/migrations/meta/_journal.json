@@ -8,6 +8,13 @@
       "when": 1773090477183,
       "tag": "0000_fast_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1773100228049,
+      "tag": "0001_strange_landau",
+      "breakpoints": true
     }
   ]
 }

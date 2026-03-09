@@ -118,6 +118,76 @@ describe('POST /api/estimates', () => {
   });
 });
 
+describe('POST /api/estimates - lead capture', () => {
+  beforeAll(async () => {
+    await seedTestData(env.DB);
+    // Create leads table for lead capture tests
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
+  });
+
+  it('stores lead when contact fields and consent=true provided', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+        firstName: 'John', lastName: 'Doe', email: 'john@example.com', phone: '5551234567', consent: true,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { estimateLow: number; estimateHigh: number; disclaimer: string; configSource: string };
+    expect(body.estimateLow).toBeTypeOf('number');
+    expect(body.estimateHigh).toBeTypeOf('number');
+    expect(body.configSource).toBe('company');
+
+    // Verify lead was stored in the database
+    const leads = await env.DB.prepare('SELECT * FROM leads WHERE email = ?').bind('john@example.com').all();
+    expect(leads.results.length).toBe(1);
+    const lead = leads.results[0] as any;
+    expect(lead.first_name).toBe('John');
+    expect(lead.last_name).toBe('Doe');
+    expect(lead.phone).toBe('5551234567');
+    expect(lead.consent_given).toBe(1);
+    expect(lead.consent_text).toContain('Acme Roofing');
+  });
+
+  it('returns 400 when contact fields present but consent=false', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+        firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', phone: '5559876543', consent: false,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when some contact fields missing', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+        firstName: 'Jane', consent: true,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(400);
+  });
+
+  it('still works without contact fields (backward compatible)', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({ sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1' }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { estimateLow: number; estimateHigh: number };
+    expect(body.estimateLow).toBeTypeOf('number');
+    expect(body.estimateHigh).toBeTypeOf('number');
+  });
+});
+
 describe('GET /api/config/:companyId', () => {
   beforeAll(async () => {
     await seedTestData(env.DB);
