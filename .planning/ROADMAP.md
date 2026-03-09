@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. API rejects invalid inputs (sqft outside 100-10,000, missing fields) with clear error messages
   3. API returns company-specific pricing when a company has overrides, and default pricing otherwise
   4. Estimate response includes an "estimate only" disclaimer alongside the price range
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md -- Project scaffold, DB schema, test infra, and estimate calculation engine
@@ -85,7 +85,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. API + Estimate Engine | 0/2 | Planned | - |
+| 1. API + Estimate Engine | 1/2 | In Progress|  |
 | 2. Embeddable Widget | 0/0 | Not started | - |
 | 3. Lead Delivery | 0/0 | Not started | - |
 | 4. Admin Settings | 0/0 | Not started | - |

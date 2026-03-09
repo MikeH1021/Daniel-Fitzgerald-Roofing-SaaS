@@ -12,9 +12,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **EST-01**: Homeowner can enter roof square footage (validated, 100-10,000 sqft range)
 - [ ] **EST-02**: Homeowner can select roof pitch (Flat, Low, Medium, Steep)
 - [ ] **EST-03**: Homeowner can select material type (3-tab shingles, architectural shingles, standing seam metal)
-- [ ] **EST-04**: Homeowner sees an estimated price range (e.g., "$8,900 - $12,800") after submitting
-- [ ] **EST-05**: Price calculated using formula: sqft × pitch_multiplier × complexity_multiplier × material_cost_per_sqft
-- [ ] **EST-06**: Estimates rounded to nearest $100 with "estimate only" disclaimer
+- [x] **EST-04**: Homeowner sees an estimated price range (e.g., "$8,900 - $12,800") after submitting
+- [x] **EST-05**: Price calculated using formula: sqft × pitch_multiplier × complexity_multiplier × material_cost_per_sqft
+- [x] **EST-06**: Estimates rounded to nearest $100 with "estimate only" disclaimer
 
 ### Lead Capture
 
@@ -88,9 +88,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EST-01 | Phase 1 | Pending |
 | EST-02 | Phase 1 | Pending |
 | EST-03 | Phase 1 | Pending |
-| EST-04 | Phase 1 | Pending |
-| EST-05 | Phase 1 | Pending |
-| EST-06 | Phase 1 | Pending |
+| EST-04 | Phase 1 | Complete |
+| EST-05 | Phase 1 | Complete |
+| EST-06 | Phase 1 | Complete |
 | LEAD-01 | Phase 2 | Pending |
 | LEAD-02 | Phase 2 | Pending |
 | LEAD-03 | Phase 3 | Pending |
