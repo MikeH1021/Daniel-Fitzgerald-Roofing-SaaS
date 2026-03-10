@@ -36,10 +36,11 @@
   2. Selecting an address suggestion centers a satellite/hybrid map on that property at roof-level zoom
   3. The Google Maps JS API does not load (no network request) until the homeowner activates map mode
   4. The widget bundle size is not meaningfully increased by the map infrastructure code
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — API key endpoint, lazy CDN loader, autocomplete data layer, map state signals
+- [ ] 05-02-PLAN.md — AddressAutocomplete + MapView components, App integration, visual verification
 
 ### Phase 6: Polygon Drawing + sqft Auto-fill + UX
 **Goal**: A homeowner can trace their roof outline on the satellite map, see the pitch-adjusted square footage calculated in real time, and have it auto-fill the sqft field — with a seamless fallback to manual entry throughout
@@ -78,6 +79,6 @@ Plans:
 | 2. Embeddable Widget | v1.0 | 2/2 | Complete | 2026-03-09 |
 | 3. Lead Delivery | v1.0 | 1/1 | Complete | 2026-03-10 |
 | 4. Admin Settings | v1.0 | 2/2 | Complete | 2026-03-10 |
-| 5. Map Infrastructure + Address Autocomplete | v1.1 | 0/? | Not started | - |
+| 5. Map Infrastructure + Address Autocomplete | v1.1 | 0/2 | Not started | - |
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 0/? | Not started | - |
 | 7. Lead Email Integration | v1.1 | 0/? | Not started | - |
