@@ -89,6 +89,48 @@ admin.use('/pricing', authMiddleware);
 admin.use('/pricing/*', authMiddleware);
 admin.use('/embed-code', authMiddleware);
 admin.use('/logout', authMiddleware);
+admin.use('/logo', authMiddleware);
+
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+const MAX_LOGO_SIZE = 1048576; // 1MB
+const MIME_TO_EXT: Record<string, string> = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/webp': '.webp',
+  'image/svg+xml': '.svg',
+};
+
+admin.post('/logo', async (c) => {
+  const companyId = c.get('companyId');
+  const formData = await c.req.formData();
+  const file = formData.get('logo');
+
+  if (!file || !(file instanceof File)) {
+    return c.json({ error: 'No logo file provided' }, 400);
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return c.json({ error: 'Invalid file type. Must be an image (png, jpeg, webp, svg)' }, 400);
+  }
+
+  if (file.size > MAX_LOGO_SIZE) {
+    return c.json({ error: 'File too large. Maximum size is 1MB' }, 400);
+  }
+
+  const ext = MIME_TO_EXT[file.type] || '.png';
+  const key = `${companyId}/logo${ext}`;
+
+  await c.env.LOGOS_BUCKET.put(key, file.stream(), {
+    httpMetadata: { contentType: file.type },
+  });
+
+  const logoUrl = `/api/logos/${companyId}`;
+
+  const db = createDb(c.env.DB);
+  await db.update(companies).set({ logoUrl }).where(eq(companies.id, companyId));
+
+  return c.json({ logoUrl });
+});
 
 admin.get('/settings', async (c) => {
   const companyId = c.get('companyId');

@@ -429,6 +429,8 @@ describe('GET /api/logos/:companyId', () => {
     }, env);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
+    // Consume body to release R2 stream for test isolation
+    await res.arrayBuffer();
   });
 
   it('returns 404 for unknown company logo', async () => {
