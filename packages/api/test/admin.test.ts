@@ -332,6 +332,113 @@ describe('POST /api/admin/logout', () => {
   });
 });
 
+describe('POST /api/admin/logo', () => {
+  let sessionCookie: string;
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('logo-company', 'Logo Co', 'logo@test.com', '#2563eb');");
+    sessionCookie = await setupAndLogin('logo@test.com', 'LogoPass123!');
+  });
+
+  it('uploads a valid PNG and updates logoUrl', async () => {
+    // Minimal 1x1 PNG
+    const pngBytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00,
+      0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33, 0x00, 0x00, 0x00,
+      0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ]);
+    const file = new File([pngBytes], 'logo.png', { type: 'image/png' });
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const res = await app.request('/api/admin/logo', {
+      method: 'POST',
+      body: formData,
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { logoUrl: string };
+    expect(body.logoUrl).toContain('logo-company');
+  });
+
+  it('rejects files over 1MB', async () => {
+    const bigData = new Uint8Array(1048577); // 1MB + 1 byte
+    const file = new File([bigData], 'big.png', { type: 'image/png' });
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const res = await app.request('/api/admin/logo', {
+      method: 'POST',
+      body: formData,
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain('1MB');
+  });
+
+  it('rejects non-image file types', async () => {
+    const file = new File(['hello'], 'test.txt', { type: 'text/plain' });
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const res = await app.request('/api/admin/logo', {
+      method: 'POST',
+      body: formData,
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain('image');
+  });
+});
+
+describe('GET /api/logos/:companyId', () => {
+  let sessionCookie: string;
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('logo-serve-company', 'Logo Serve Co', 'logoserve@test.com', '#2563eb');");
+    sessionCookie = await setupAndLogin('logoserve@test.com', 'LogoServe1!');
+    // Upload a logo first
+    const pngBytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00,
+      0x0c, 0x49, 0x44, 0x41, 0x54, 0x08, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0x00,
+      0x00, 0x00, 0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33, 0x00, 0x00, 0x00,
+      0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+    ]);
+    const file = new File([pngBytes], 'logo.png', { type: 'image/png' });
+    const formData = new FormData();
+    formData.append('logo', file);
+    await app.request('/api/admin/logo', {
+      method: 'POST',
+      body: formData,
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+  });
+
+  it('serves uploaded logo with correct content-type', async () => {
+    const res = await app.request('/api/logos/logo-serve-company', {
+      method: 'GET',
+    }, env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+  });
+
+  it('returns 404 for unknown company logo', async () => {
+    const res = await app.request('/api/logos/nonexistent-company', {
+      method: 'GET',
+    }, env);
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('POST /api/admin/logout - session invalidated', () => {
   let sessionCookie: string;
 
