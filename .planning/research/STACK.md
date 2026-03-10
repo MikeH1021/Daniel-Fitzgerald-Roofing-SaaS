@@ -1,178 +1,221 @@
-# Technology Stack
+# Stack Research
 
-**Project:** Roofing Estimate Calculator (Embeddable SaaS Widget)
-**Researched:** 2026-03-09
+**Domain:** Embeddable SaaS roofing widget — Google Maps roof measurement addition
+**Researched:** 2026-03-10
+**Confidence:** HIGH (all critical claims verified against official Google documentation)
 
-## Recommended Stack
+---
 
-### Widget (Embeddable Frontend)
+## Context: What Already Exists
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Preact | 10.28.x | Widget UI framework | 3KB gzipped -- critical for an embed that loads on someone else's site. React API compatibility means familiar DX without the 40KB tax. Sentry chose Preact for their embed widget for the same reason. | HIGH |
-| Shadow DOM | (Web API) | Style isolation | Prevents host site CSS from breaking the widget and widget CSS from leaking out. 96% browser support. The standard approach for modern embeddable widgets. | HIGH |
-| Vite | 7.x | Build tooling | Builds the widget as a single IIFE bundle. Fast dev server, tree-shaking, CSS inlining into Shadow DOM. | HIGH |
-| TypeScript | 5.x | Type safety | Non-negotiable for any production project in 2026. | HIGH |
+This is a subsequent-milestone research file. The following stack is validated and must NOT change:
 
-**Embed strategy:** Script tag with `data-company-id` attribute. The script loads a self-contained IIFE bundle that creates a Shadow DOM container and renders the Preact widget inside it. No iframe -- avoids the communication overhead, memory cost, and sizing headaches. The widget fetches pricing config from the API using the company ID.
+| Package | Version | Role |
+|---------|---------|------|
+| Preact | ^10 | Widget UI |
+| @preact/signals | ^1 | Reactive state |
+| Vite | ^6 | Build tooling (IIFE bundle) |
+| TypeScript | ^5.7 | Type safety |
+| Hono | 4.x | API on Cloudflare Workers |
+| Drizzle ORM | 0.45.x | D1 database queries |
+| Zod | 3.x | Validation |
+| Cloudflare Workers + D1 + R2 | GA | Infra |
 
-```html
-<!-- Customer adds this to their site -->
-<div id="roofing-calculator"></div>
-<script src="https://cdn.yourdomain.com/widget.js" data-company-id="abc123"></script>
-```
+Current widget bundle: **28KB gzipped IIFE**. Embed size is a hard constraint.
 
-### Admin Settings Page (Internal Frontend)
+---
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Preact | 10.28.x | Admin UI framework | Same framework as the widget -- one learning curve, shared utilities. The admin page is tiny (logo upload, color picker, pricing overrides). No need for a heavier framework. | HIGH |
-| Vite | 7.x | Build tooling | Same build pipeline as the widget. | HIGH |
+## New Stack Additions for v1.1
 
-**Why not a separate framework for admin?** The admin page is ~3-4 screens. Using the same Preact stack avoids maintaining two frontend ecosystems. If the admin grows significantly later, migrating to React is trivial (Preact is API-compatible).
+### Core Technologies
 
-### Backend / API
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Hono | 4.12.x | API framework | Ultrafast (14KB), runs natively on Cloudflare Workers. Built on Web Standards so it works everywhere. TypeScript-first with excellent DX. 3x faster than Express, 30% less memory than Fastify. Perfect for a simple CRUD + estimate API. | HIGH |
-| Zod | 3.x | Request validation | Pairs naturally with Hono's validator middleware. Schema-first validation for form submissions and settings updates. | HIGH |
-
-**Why Hono over Fastify/Express?** This API is small (estimate calculation, settings CRUD, lead submission). Hono's edge-native design means the API runs on Cloudflare Workers globally with no server management. Fastify is excellent but Node.js-specific -- Hono gives us edge deployment for free.
-
-### Database
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Cloudflare D1 | GA | Primary database (SQLite at the edge) | Native integration with Workers -- no network hop to a separate database. Free tier is absurdly generous (5M reads/day, 100K writes/day, 5GB storage). For a lead-gen widget handling hundreds of submissions per day, this is effectively free for years. | MEDIUM |
-| Drizzle ORM | 0.45.x | Type-safe database queries | Lightweight, TypeScript-native, first-class D1 support. Schema-as-code with migrations. Much lighter than Prisma (which has edge compatibility issues). | HIGH |
-
-**Why D1 over Postgres (Supabase/Neon)?** This app has simple relational data: companies, settings, leads. No complex queries, no joins across 15 tables. D1's SQLite engine handles this perfectly, and being co-located with the Worker eliminates latency. If the app outgrows D1 (unlikely for v1), Drizzle makes migrating to Postgres straightforward -- just change the dialect.
-
-**Schema is simple:**
-- `companies` (id, name, logo_url, primary_color, created_at)
-- `pricing_overrides` (company_id, base_price_per_sqft, pitch_multipliers, complexity_multipliers)
-- `leads` (id, company_id, address, sqft, pitch, complexity, name, email, phone, estimate_low, estimate_high, created_at)
-
-### Email Delivery
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Resend | API v2 | Transactional lead notification emails | Modern developer-first API, React Email integration for templating, 3,000 emails/month free tier (plenty for early customers). Clean SDK, transparent pricing ($20/mo for 50K emails when scaling). | HIGH |
-
-**Why Resend over Postmark/SendGrid?**
-- Postmark has better deliverability track record but costs more and the API feels dated.
-- SendGrid is bloated with marketing features this project will never use.
-- Resend's React Email lets us build email templates in JSX (same mental model as the rest of the app). For lead notification emails that must be reliable but aren't high-volume, Resend is the right balance of DX and reliability.
-
-**Risk mitigation:** If deliverability becomes an issue, Resend can be swapped for Postmark with minimal code changes (both are simple REST APIs). Monitor delivery rates from day one.
-
-### Static Asset Hosting (Widget Bundle)
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Cloudflare R2 + CDN | GA | Host the widget.js bundle | The widget JS must load fast on customer sites worldwide. R2 gives S3-compatible storage with Cloudflare's CDN in front -- zero egress fees. Widget bundle served from edge locations globally. | HIGH |
-
-### Hosting / Deployment
-
-| Technology | Purpose | Why | Confidence |
-|------------|---------|-----|------------|
-| Cloudflare Workers | API hosting | Hono runs natively. Global edge deployment. $5/mo paid plan includes 10M requests. No servers to manage. | HIGH |
-| Cloudflare Pages | Admin app hosting | Static site hosting with preview deployments. Free tier is generous. | HIGH |
-| Cloudflare R2 | Widget bundle + company logos | Zero egress fees. CDN-backed. | HIGH |
-
-**Why Cloudflare over Railway/Fly.io/Vercel?**
-The entire stack runs on one platform: Workers (API), Pages (admin), R2 (assets), D1 (database). Single billing, single deploy pipeline, single CLI (`wrangler`). No vendor-mixing complexity. The free tier covers development and early customers. Paid tier ($5/mo base) handles significant scale.
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Google Maps JavaScript API | weekly (loaded at runtime) | Satellite map display, coordinate system | The only API that provides satellite imagery + polygon geometry + Places autocomplete under one key. Loaded dynamically at runtime — does NOT add to widget bundle. |
+| @googlemaps/js-api-loader | 2.0.2 | Dynamic script loader for Maps API | Official Google library. Handles deduplication (safe to call multiple times), `importLibrary()` async pattern, and TypeScript types. 61KB unpacked, but loaded as a runtime dependency alongside the Maps script itself — not bundled into the IIFE. |
+| Place Autocomplete Data API | (part of Maps JS API `places` library) | Programmatic address autocomplete with session tokens | New customer requirement since March 1, 2025: `google.maps.places.Autocomplete` is blocked for new API keys. The Data API (`AutocompleteSuggestion`) is the current approach — fetches suggestions programmatically so we control the UI inside Shadow DOM. |
+| Terra Draw | 1.25.0 | Polygon drawing on Google Maps | Official Google recommendation replacing the deprecated Drawing Library (deprecated Aug 2025, removed May 2026). Provides `TerraDrawPolygonMode` with click-to-place vertices and auto-close. GeoJSON output. |
+| terra-draw-google-maps-adapter | 1.3.1 | Binds Terra Draw to a Google Maps instance | Separate adapter package per Terra Draw's architecture. Wraps the Google Maps `OverlayView` API. Required alongside the core `terra-draw` package. |
 
 ### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| @hono/zod-validator | latest | Request validation middleware | Every API endpoint |
-| drizzle-kit | latest | Database migrations CLI | Schema changes |
-| react-email | latest | Email template components | Lead notification emails |
-| @preact/signals | 2.x | Reactive state in widget | Multi-step form state management |
-| nanoid | 5.x | ID generation | Company IDs, lead IDs |
+| `google.maps.geometry` | (part of Maps JS API) | `spherical.computeArea()` → square meters | After polygon is completed; convert sq meters → sq feet (× 10.7639). Load via `importLibrary("geometry")`. |
+| `google.maps.places` | (part of Maps JS API) | `AutocompleteSuggestion.fetchAutocompleteSuggestions()` + `Place.fetchFields()` | Address autocomplete input. Load via `importLibrary("places")`. |
+| `google.maps.maps` | (part of Maps JS API) | `Map` instance, `MapTypeId.SATELLITE` | Satellite map render. Load via `importLibrary("maps")`. |
 
-## Alternatives Considered
+### Development Tools
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Widget framework | Preact | React 19 | 13x larger bundle (40KB vs 3KB). Unacceptable for a third-party embed. |
-| Widget framework | Preact | Svelte 5 | Smaller output but different paradigm. Preact's React compatibility means easier hiring and more ecosystem support. |
-| Widget framework | Preact | Vanilla JS | No component model, manual DOM management. The 4-step form with validation needs a framework. |
-| Embed strategy | Script tag + Shadow DOM | iframe | Memory overhead, sizing issues (dynamic height), postMessage complexity. Iframe is overkill for a trusted first-party widget. |
-| Backend | Hono on Workers | Next.js API routes | Massive framework for a simple API. Next.js adds SSR complexity we don't need. |
-| Backend | Hono on Workers | Fastify on Railway | Excellent framework but ties us to a Node.js server. Workers gives global edge for free. |
-| Database | D1 (SQLite) | Supabase (Postgres) | Overkill. Adds another vendor, another bill, network latency to a managed Postgres. D1 is co-located with the Worker. |
-| Database | D1 (SQLite) | Neon (Postgres) | Reliability concerns (multiple 2025 outages). Also overkill for this data model. |
-| ORM | Drizzle | Prisma | Prisma has edge runtime issues, larger bundle, slower cold starts. Drizzle is purpose-built for this environment. |
-| Email | Resend | Postmark | Better deliverability but higher cost and less modern DX. Can swap later if needed. |
-| Email | Resend | SendGrid | Bloated with marketing features. Worse DX. Reliability has declined. |
-| Hosting | Cloudflare | Vercel + separate DB | More expensive, splits infrastructure across vendors, no built-in D1 equivalent. |
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `@types/google.maps` | TypeScript types for Maps JS API | Install as dev dependency in the widget package. Provides `google.maps.*` type definitions without bundling the API. |
+
+---
 
 ## Installation
 
 ```bash
-# Initialize Cloudflare Workers project with Hono
-npm create hono@latest roofing-api -- --template cloudflare-workers
+# In packages/widget
+npm install @googlemaps/js-api-loader terra-draw terra-draw-google-maps-adapter
 
-# Core API dependencies
-npm install hono drizzle-orm @hono/zod-validator zod nanoid
-
-# Dev dependencies
-npm install -D drizzle-kit wrangler typescript @types/node
-
-# Widget project (separate package or monorepo workspace)
-npm install preact @preact/signals
-npm install -D vite @preact/preset-vite typescript
-
-# Admin project
-npm install preact @preact/signals
-npm install -D vite @preact/preset-vite typescript
-
-# Email templates
-npm install resend @react-email/components react-email
+# Dev types (no runtime cost)
+npm install -D @types/google.maps
 ```
 
-## Monorepo Structure
+The Maps JS API itself is NOT installed via npm — it loads at runtime via `@googlemaps/js-api-loader`.
 
+---
+
+## Google Maps API Pricing (March 2025 Pricing Model)
+
+Google replaced the $200 monthly credit in March 2025 with per-SKU free monthly thresholds.
+
+| SKU | Free Monthly | Paid Rate |
+|-----|-------------|-----------|
+| Maps JS API (Dynamic Maps) | 10,000 map loads | $7.00/1,000 (10K-100K) → scales down |
+| Places Autocomplete Request | 10,000 requests | $2.83/1,000 (10K-100K) |
+| Places Details (Essentials) | 10,000 requests | ~$5.00/1,000 |
+| Geometry (computeArea) | No separate charge | Included in map load SKU |
+| Polygon drawing | No separate charge | No dedicated SKU — uses map load |
+
+**Session token strategy (critical for cost):** Use `AutocompleteSessionToken` to group all autocomplete keystrokes with the final Place Details fetch into one billable session. Without session tokens, every keystroke is billed individually. Session tokens are free — only the terminal `Place.fetchFields()` call is charged. At ~5 address lookups per estimate submission, session pricing keeps costs close to zero at normal volumes.
+
+**Cost at scale:** With 10,000 map loads/month free, the first ~10,000 estimate widget interactions cost nothing. A roofing company doing 50 estimates/day × 30 days = 1,500 map loads/month — well within free tier for most early customers.
+
+---
+
+## Critical Integration Details
+
+### Shadow DOM + Google Maps
+
+Google Maps renders into a DOM element by reference, not by CSS selector. Pass a `div` ref from inside the Shadow DOM directly to `new google.maps.Map(divElement, options)`. This works correctly — verified by the Bitovi web components academy and existing custom element implementations.
+
+```typescript
+// In a Preact component, after mount:
+const mapDivRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  if (mapDivRef.current) {
+    const map = new google.maps.Map(mapDivRef.current, {
+      mapTypeId: google.maps.MapTypeId.SATELLITE,
+      zoom: 20,
+    });
+  }
+}, []);
 ```
-roofing_calculator/
-  packages/
-    api/           # Hono on Cloudflare Workers
-    widget/        # Preact widget (builds to IIFE bundle)
-    admin/         # Preact admin app (builds to static site)
-    shared/        # Shared types, validation schemas (Zod)
-    email/         # React Email templates
+
+The map container div lives inside the Shadow DOM. Maps JS API uses that reference directly and renders correctly.
+
+**Print CSS caveat (LOW severity):** Google Maps injects global print CSS into `document.head`. This CSS won't cascade into the Shadow DOM. Impact: map may not print well. Not a concern for this use case (interactive estimator widget, not printed).
+
+### Shadow DOM + PlaceAutocompleteElement (avoid)
+
+The `<gmp-place-autocomplete>` web component uses a **closed Shadow DOM** internally. Styling it to match the widget's design requires monkey-patching `Element.prototype.attachShadow` — fragile and not recommended. Use the **Place Autocomplete Data API** instead: build a native Preact `<input>` inside the widget's own Shadow DOM, call `AutocompleteSuggestion.fetchAutocompleteSuggestions()` on input events, render a custom dropdown. This approach:
+- Uses standard Preact state/signals
+- Fully styled with the widget's CSS variables
+- No monkey-patching
+- Session token support built in
+
+### Terra Draw Inside Shadow DOM
+
+Terra Draw renders its canvas/overlay via the Google Maps `OverlayView`, which attaches to the map's own panes (inside the Shadow DOM div). This works without special configuration. Terra Draw does not inject styles into `document.head`.
+
+### Bundle Size Impact
+
+The IIFE bundle must not include Maps JS API, Terra Draw, or the adapter. All three are runtime dependencies loaded when the user reaches the map step.
+
+| Dependency | Load strategy | Size impact on IIFE |
+|-----------|--------------|---------------------|
+| Google Maps JS API | Dynamic script tag via loader | 0 KB added to bundle |
+| @googlemaps/js-api-loader | **Bundled into IIFE** | ~4 KB gzipped |
+| terra-draw | Lazy-imported at map step | 0 KB at initial load |
+| terra-draw-google-maps-adapter | Lazy-imported at map step | 0 KB at initial load |
+| @types/google.maps | Dev only | 0 KB (types only) |
+
+Use Vite dynamic `import()` to lazy-load Terra Draw only when the user opts into the map measurement flow. The initial widget load remains ~32KB gzipped (up from 28KB, ~14% increase from bundling the loader).
+
+```typescript
+// Lazy load terra-draw only when map step is activated
+const { TerraDraw, TerraDrawPolygonMode } = await import('terra-draw');
+const { TerraDrawGoogleMapsAdapter } = await import('terra-draw-google-maps-adapter');
 ```
 
-Use npm workspaces (no need for Turborepo at this scale). Shared Zod schemas ensure API request/response types stay in sync between widget, admin, and API.
+---
 
-## Cost Projection
+## Alternatives Considered
 
-| Component | Free Tier | When to Pay | Paid Cost |
-|-----------|-----------|-------------|-----------|
-| Workers (API) | 100K requests/day | >100K req/day | $5/mo base + $0.30/M requests |
-| D1 (Database) | 5M reads/day, 5GB | >5M reads/day | $5/mo base (included with Workers paid) |
-| R2 (Assets) | 10GB storage, 10M reads/mo | >10M reads/mo | $0.015/GB storage |
-| Pages (Admin) | 500 builds/mo, unlimited bandwidth | Unlikely to exceed | $0/mo |
-| Resend (Email) | 3,000 emails/mo | ~30 active companies | $20/mo |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Place Autocomplete Data API (programmatic) | `<gmp-place-autocomplete>` web component | Use the web component only when you control the full page and don't need custom styling. Inside Shadow DOM with strict design requirements, the Data API is correct. |
+| Terra Draw polygon mode | Google Maps Drawing Library | Never for new projects — Drawing Library is deprecated August 2025, removed May 2026. |
+| Terra Draw polygon mode | Custom click listener + `google.maps.Polygon` | Viable alternative. Fewer dependencies, more control. Higher implementation effort (manual vertex management, undo/redo, mobile touch). Terra Draw handles all of this. |
+| Maps JS API (Google) | Mapbox GL JS | Mapbox has better vector tiles and styling. But requires a separate Mapbox key, different polygon API, and no Places autocomplete. Google Maps is the only option that unifies satellite imagery + autocomplete + geometry under one key. |
+| Maps JS API (Google) | Leaflet + OpenStreetMap | No satellite imagery without a paid tile provider. Not appropriate for roof tracing. |
 
-**Estimated cost for first 50 customers:** $5-25/mo total infrastructure. This stack is effectively free during validation.
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `google.maps.drawing.DrawingManager` | Deprecated August 2025, removed May 2026. Any new implementation using it will break in a few months. | Terra Draw with `TerraDrawPolygonMode` |
+| `google.maps.places.Autocomplete` (legacy class) | Blocked for new API keys since March 1, 2025. Will throw a console error and not function for any API key created after that date. | `google.maps.places.AutocompleteSuggestion` (Places Autocomplete Data API) |
+| `google.maps.places.AutocompleteService` (legacy) | Blocked for new API keys since March 1, 2025. Same reason as above. | `google.maps.places.AutocompleteSuggestion` |
+| `react-google-maps` or `@vis.gl/react-google-maps` | React-specific wrappers. This project uses Preact in an IIFE bundle — React adapter packages add React as a dependency, defeating the entire reason for using Preact. | Direct Maps JS API calls inside Preact components |
+| `use-places-autocomplete` (npm hook) | React hook, same problem. Also relies on legacy Autocomplete API. | Custom Preact hook wrapping `AutocompleteSuggestion` |
+| Bundling Maps JS API | ~450KB gzipped. Would destroy the widget bundle size constraint. | Runtime loading via `@googlemaps/js-api-loader` |
+
+---
+
+## Stack Patterns by Variant
+
+**If the company has a Google Maps API key configured:**
+- Load Maps API via `@googlemaps/js-api-loader` using that key
+- Show "Measure on Map" button above the sqft input
+- Flow: address autocomplete → satellite view → polygon draw → auto-fill sqft
+
+**If no API key is configured (or key is missing/invalid):**
+- Hide "Measure on Map" button entirely
+- Fall through to manual sqft entry (existing behavior)
+- No error shown to homeowner
+
+**If the homeowner skips the map step:**
+- Manual sqft entry remains fully functional
+- No change to existing RoofDetails step behavior
+
+---
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| terra-draw@1.25.0 | terra-draw-google-maps-adapter@1.3.1 | Must match major versions; both are actively maintained together |
+| @googlemaps/js-api-loader@2.0.2 | Google Maps JS API weekly channel | Loader version is independent of Maps API version |
+| Preact@10 | Terra Draw@1.x | Terra Draw is framework-agnostic; no compatibility concern |
+| Vite@6 + dynamic import() | Terra Draw@1.x | Standard ESM dynamic import, works with Vite IIFE builds with `inlineDynamicImports: true` — **requires config adjustment** for lazy loading |
+
+**Vite IIFE build config note:** The existing `vite.config.ts` sets `inlineDynamicImports: true`. This inlines all dynamic imports at build time (defeating lazy loading). To enable true lazy loading of Terra Draw, change the build to use a different strategy or accept that Terra Draw will be inlined into the IIFE. Given Terra Draw's size (3.9MB unpacked), evaluate whether to:
+1. Accept it in the bundle (larger initial load)
+2. Load via CDN script tag instead (avoids bundler entirely)
+3. Restructure build to allow code splitting (complex for IIFE format)
+
+**Recommendation:** Load Terra Draw and its adapter from a CDN (e.g., unpkg or jsDelivr) only when the map step is activated. This keeps the IIFE bundle small and leverages CDN caching across sites using the widget.
+
+---
 
 ## Sources
 
-- [Preact official site](https://preactjs.com/) -- 3KB gzipped, React API compatibility
-- [Sentry Engineering: Preact or Svelte for embedded widgets](https://sentry.engineering/blog/preact-or-svelte-an-embedded-widget-use-case/) -- real-world widget framework comparison
-- [Build embeddable widget with Preact and Shadow DOM](https://dev.to/companycam/build-an-embeddable-widget-using-preact-and-the-shadow-dom-33lm) -- implementation guide
-- [Hono official site](https://hono.dev/) -- Web Standards framework, multi-runtime
-- [Hono vs Fastify comparison](https://betterstack.com/community/guides/scaling-nodejs/hono-vs-fastify/) -- performance benchmarks
-- [Drizzle ORM + Cloudflare D1](https://orm.drizzle.team/docs/connect-cloudflare-d1) -- official integration docs
-- [Cloudflare D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) -- free tier and paid pricing
-- [Cloudflare Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) -- free and paid tiers
-- [Resend pricing](https://resend.com/pricing) -- 3,000 emails/mo free, $20/mo pro
-- [Resend pricing analysis](https://flexprice.io/blog/detailed-resend-pricing-guide) -- detailed plan comparison
-- [Vite 7 release](https://vite.dev/releases) -- current stable version
-- [Makerkit: React embeddable widget starter](https://github.com/makerkit/react-embeddable-widget) -- reference implementation
-- [Hono + D1 + Drizzle setup guide](https://www.firdausng.com/posts/setup-d1-cloudflare-worker-with-drizzle) -- practical integration tutorial
+- [Google Maps Deprecations page](https://developers.google.com/maps/deprecations) — Drawing Library deprecated August 2025, removed May 2026; legacy Autocomplete blocked for new keys March 1, 2025 (HIGH confidence, official)
+- [Terra Draw on Google Maps (Official Example)](https://developers.google.com/maps/documentation/javascript/examples/map-drawing-terradraw) — Google's recommended replacement for Drawing Library (HIGH confidence, official)
+- [Place Autocomplete Data API docs](https://developers.google.com/maps/documentation/javascript/place-autocomplete-data) — `AutocompleteSuggestion`, session tokens, programmatic approach (HIGH confidence, official)
+- [Place Autocomplete Widget docs](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new) — `PlaceAutocompleteElement` closed Shadow DOM, `gmp-select` event (HIGH confidence, official)
+- [Google Maps Billing Pricing page](https://developers.google.com/maps/billing-and-pricing/pricing) — March 2025 pricing structure with per-SKU free thresholds (HIGH confidence, official)
+- [Google Maps March 2025 pricing changes](https://developers.google.com/maps/billing-and-pricing/march-2025) — $200 credit replaced with free usage tiers (HIGH confidence, official)
+- [Geometry Library reference](https://developers.google.com/maps/documentation/javascript/reference/geometry) — `spherical.computeArea()` returns square meters, `importLibrary("geometry")` pattern (HIGH confidence, official)
+- [@googlemaps/js-api-loader GitHub releases](https://github.com/googlemaps/js-api-loader/releases) — v2.0.2 released October 29, 2025 (HIGH confidence, official)
+- [terra-draw npm registry](https://www.npmjs.com/package/terra-draw) — v1.25.0, last published ~14 days prior to research date (HIGH confidence, npm registry)
+- [Mastering Google Places new API — Shadow DOM styling](https://juancrg90.me/posts/mastering-google-places-new-api/) — closed Shadow DOM monkey-patch workaround, why to avoid it (MEDIUM confidence, community)
+- [Bitovi web components academy — Map View](https://bitovi.github.io/academy/learn-web-components/map-view.html) — rendering Google Maps inside Shadow DOM via div reference (MEDIUM confidence, educational)
+
+---
+*Stack research for: Roofing widget v1.1 — Google Maps roof measurement*
+*Researched: 2026-03-10*

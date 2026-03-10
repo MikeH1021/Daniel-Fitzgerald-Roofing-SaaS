@@ -1,335 +1,273 @@
-# Feature Landscape
+# Feature Research
 
-**Domain:** Embeddable Roofing Estimate Calculator SaaS (lead generation widget)
-**Researched:** 2026-03-09
-**Overall confidence:** MEDIUM-HIGH
+**Domain:** Address-to-satellite-view polygon roof measurement (v1.1 addition to existing estimate widget)
+**Researched:** 2026-03-10
+**Confidence:** HIGH (Google official docs verified March 2026, existing codebase inspected)
 
-## Table Stakes
+---
 
-Features users (both roofing companies AND homeowners) expect. Missing = product feels incomplete or untrustworthy.
+## Context: What Already Exists
+
+The v1.0 widget `RoofDetails` step (step 0 of 3) has:
+- Manual `sqft` number input (100–10,000 range, validated in `RoofDetails.tsx`)
+- `pitch` dropdown (flat/low/medium/steep, maps to pricing multipliers)
+- `material` dropdown (3-tab, architectural, standing-seam-metal)
+- Preact signals state in `form.ts` — `formData.sqft`, `formData.pitch`, `formData.material`
+
+The new measurement feature enhances step 1. It does NOT add a new step (4-step max is a hard constraint). It feeds the existing `formData.sqft` signal and optionally adds `formData.address`.
+
+---
+
+## Feature Landscape
+
+### Table Stakes (Users Expect These)
+
+Features that define a usable satellite roof measurement experience. Any of these missing = the tool feels broken or amateur.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Address / location input | Every competitor asks for it; needed for regional pricing | Low | Text field, optionally with autocomplete later |
-| Roof square footage input | Core variable for any estimate | Low | Numeric input with validation (typical range 1,000-5,000 sqft) |
-| Roof pitch selection | Major cost factor; all competitors include it | Low | Dropdown or visual selector: Flat, Low (3-4/12), Medium (5-7/12), Steep (8-12/12) |
-| Material type selection | Homeowners want to compare materials; drives price dramatically | Low | At minimum: 3-tab shingle, architectural shingle, metal |
-| Contact info capture | Core value prop for roofing companies (lead generation) | Low | First name, last name, email, phone |
-| Consent checkbox | Legal requirement for lead generation / communications | Low | Required before submit |
-| Instant price range display | "Instant" is the category-defining feature; Roofle, Instant Roofer, Roofr all do this | Medium | Show as range (e.g., "$8,500 - $12,000") not a single number |
-| Email lead notification | Roofing company must receive leads immediately | Medium | Email with all submitted details + estimate shown |
-| Embeddable via script tag | Must work on any website (WordPress, Wix, Squarespace, custom) | Medium | Single `<script>` tag or iframe snippet |
-| Mobile responsive | Many homeowners browse on phones; PROJECT.md constraint | Medium | Widget must render well at all viewport sizes |
-| Company logo on widget | Basic branding; every competitor offers this | Low | Image upload in settings |
-| Company color theming | Basic branding; competitors allow at least primary color | Low | Color picker in settings |
+| Address autocomplete input | Every mapping tool starts with address search. Typing a full address and hoping the map goes to the right place is a trust-killer. | LOW | Use `PlaceAutocompleteElement` (new Places API widget). Fires `gmp-select` event. Returns `place.location` (LatLng) after `fetchFields(['location', 'formattedAddress'])`. Do NOT use legacy `Autocomplete` class. |
+| Satellite map centered on address | Users expect to see their roof immediately after address selection. A generic map at city level is useless. | LOW | Set `mapTypeId: 'hybrid'` (satellite + street labels), zoom 19. Wire `gmp-select` → `map.panTo(place.location)` + `map.setZoom(19)`. Hybrid over pure satellite so users can confirm the right address via labels. |
+| Polygon drawing tool | The core mechanic. Click corners around the roof outline to define the area. This is what every satellite measurement tool does. | MEDIUM | Google's `DrawingManager` is **deprecated August 2025, unavailable May 2026**. Must use Terra Draw (`TerraDrawPolygonMode`) instead. Terra Draw is Google's documented replacement for the drawing library. |
+| Real-time area display while drawing | Users expect to see a sqft number update as they add vertices. Without live feedback, they don't know if they're measuring correctly. | MEDIUM | Listen to Terra Draw `draw.on('change', callback)`. On each change, call `draw.getSnapshot()`, extract the in-progress polygon coordinates, run `google.maps.geometry.spherical.computeArea()` (returns sq meters × 10.764 = sq feet). |
+| Auto-fill sqft field on polygon close | The measured value must flow into the existing form automatically. Requiring users to manually read and re-type a number defeats the purpose. | LOW | On polygon completion event, call `updateField('sqft', String(Math.round(calculatedSqft)))` — this writes to the existing `formData` signal. The existing sqft input shows the pre-filled value. |
+| Manual sqft fallback | Users on mobile (harder to draw), or who already know their sqft from an insurance doc, should not be forced through the map. | LOW | The existing sqft number input must remain visible and editable alongside or below the map. Map measurement pre-populates it; user can override by typing. Both paths write to `formData.sqft`. |
+| Undo last point | Users will misclick. Mobile users especially. No undo = polygon is ruined = user abandons the form. | LOW | Terra Draw `TerraDrawSelectMode` supports vertex deletion. Alternatively, track vertex array and pop last point manually with a button. Simpler: just provide a "Clear and restart" button if vertex-level undo is complex. |
+| Clear and start over | If the polygon is badly placed, users need a full reset to retrace from scratch. | LOW | Call `draw.clear()` on the Terra Draw instance, reset the displayed sqft to "–". Do not reset `formData.sqft` until a new polygon is closed. |
 
-## Differentiators
+### Differentiators (Competitive Advantage)
 
-Features that set the product apart from competitors. Not expected, but valued.
+Features that go beyond baseline and increase conversion or estimate credibility.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Pricing override controls | Let each roofing company set their own $/sqft, multipliers, and margins -- most competitors lock pricing or require contacting support | Medium | Settings page with per-material base cost, pitch multiplier overrides, margin % |
-| Complexity factor selection | Most basic calculators ignore roof complexity; adding it increases estimate credibility | Low | Simple/Ranch, Average, Complex/Multi-level selector |
-| Tear-off / existing layers option | Adds $1-3/sqft; improves accuracy and shows sophistication | Low | Toggle: "Does your roof have existing shingles to remove?" |
-| Regional cost factor | Auto-adjusts pricing by state/region; most small competitors skip this | Medium | Lookup table by state, applied as multiplier (0.80 - 1.25x) |
-| Estimate breakdown display | Show homeowners HOW the price was calculated (materials + labor + tear-off); builds trust | Medium | Optional detailed view below the price range |
-| QR code generation | Roofr offers this -- lets companies put calculator on trucks, business cards, door hangers | Low | Generate QR linking to company's calculator instance |
-| Multi-material comparison | Show prices for 2-3 material types side by side in results | Medium | Roofle does this well; high perceived value |
-| Lead performance tracking | Which embed locations / channels generate the most leads | Medium | Analytics dashboard (v2 feature) |
-| Webhook / Zapier integration | Let companies push leads to their CRM without custom dev | Medium | v2 feature; Roofr has native CRM, but most small companies use spreadsheets |
-| Financing estimate | Show monthly payment estimate; Roofle offers this | Low | Simple calculation: total / months at typical APR |
+| Pitch-adjusted sqft auto-calculation | The footprint area traced on the satellite is NOT the actual roof surface area. A steep roof covers more material than its flat footprint. Auto-applying the pitch multiplier gives a more accurate sqft for the estimate — and educates the homeowner. | LOW | Formula: `footprint_sqft × pitch_multiplier`. Pitch multipliers already exist in the pricing engine (flat=1.00, low=1.05, medium=1.12, steep=1.25). Read `formData.pitch`, apply multiplier, write adjusted sqft. Display both: "Footprint: 1,200 sqft → Roof surface (Medium pitch): 1,344 sqft" |
+| "Measure my roof" toggle / mode switcher | Surfaces the feature without forcing it. A toggle clearly separates "I know my sqft" from "help me measure it", reducing confusion and keeping the form familiar for users who don't want the map. | LOW | A two-option toggle above the sqft field: "Enter manually" (default) / "Measure on map". Show map panel below the toggle when "Measure on map" is selected. Map and its dependencies load lazily only when this mode is activated — critical for bundle size. |
+| Address string included in lead email | Roofing companies receive the property address alongside the sqft and contact info. Far more useful than an anonymous sqft number. Allows them to look up the property before calling the lead. | LOW | Add `address` field to `formData` signal. Populate on `gmp-select`. Include in the estimate POST body. Render in the Resend lead email template. Zero UX impact on the homeowner. |
+| "Done drawing" button to close polygon | On mobile, precision-clicking the first vertex to close a polygon is nearly impossible. A "Done" button closes the polygon programmatically wherever the user stops. | LOW | Terra Draw supports programmatic polygon completion. Add a "Done" button that appears after ≥3 vertices are placed. Closes the polygon by connecting the last point back to the first. |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build. These are traps.
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| AI / ML automatic roof detection | "Detect the roof automatically" sounds impressive and would eliminate user effort | Requires server-side satellite image processing, LIDAR, or expensive third-party APIs (EagleView, Nearmap charge $10–25 per address report). This is a different product with a different cost structure. Not viable for an embedded widget with no per-use pricing. | Manual polygon drawing takes 30 seconds and homeowners can do it |
+| Exact pitch detection from satellite | Pitch drives cost — auto-detecting it would improve estimate accuracy | 2D top-down satellite imagery cannot determine roof pitch. Requires elevation data or AI models trained on stereo imagery. Every tool that claims this either uses rough heuristics or expensive data. | Keep existing pitch dropdown. It is fast, accurate, and the homeowner usually knows their roof pitch category. |
+| Multiple roof sections / facets | Complex roofs (dormers, additions, L-shapes) have multiple planes | Multi-polygon UX requires state for each section (label, add, edit, delete), partial sums, and total rollup. This blows up the 4-step max constraint and the widget's simplicity goal. The drawing UI alone would require multiple screens. | Single polygon for the main roof plane. Instruct user to trace the largest section and note that dormers / additions may affect final pricing. The manual sqft fallback remains for users who know their actual roof area. |
+| Google Maps Drawing Library (`DrawingManager`) | Many tutorials reference it; it's the "obvious" approach | **Deprecated August 2025. Unavailable from May 2026.** Building on it now means a forced rewrite before the widget reaches maturity. The migration window is already closing. | Terra Draw — explicitly listed as the Google-recommended replacement. Same polygon drawing capabilities, GeoJSON output, active maintenance. |
+| Forcing map measurement (removing manual fallback) | "One clear path" — avoiding the choice | Many homeowners already have sqft from an insurance document, previous estimate, or county records. Forcing them through a satellite drawing step is friction for no gain. Mobile polygon drawing is meaningfully harder than desktop. Users who don't want to draw will abandon. | Keep manual entry as a peer option (the "Enter manually" toggle state), not a buried fallback link |
+| Storing polygon GeoJSON in the database | "Complete data capture" | Polygon GeoJSON can be 500–5,000 bytes per shape. D1 is at 100K writes/day on free tier. No downstream use exists for polygon geometry in v1 — the sqft is all that matters. | Extract sqft from polygon client-side, discard the polygon. Store only `sqft` (number) and `address` (string). |
+| Satellite-only map type (no labels) | Cleaner visual, fewer distractions | Homeowners need to confirm they're looking at the right property. Pure satellite images of residential areas are nearly indistinguishable without street names and address labels. Incorrect property measurement = wrong estimate = bad lead. | Use `mapTypeId: 'hybrid'` (satellite tiles + vector label overlay). Best of both worlds. |
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Satellite / aerial roof measurement | Massive complexity (AI/ML, imagery APIs, accuracy liability); Instant Roofer and Roofr have invested millions here. Not a viable v1 differentiator. | Manual sqft entry. Revisit only if product achieves significant traction and revenue. |
-| Full CRM / lead management dashboard | Scope creep; roofing companies already have tools or spreadsheets. Building CRM = building a different product. | Email notifications for v1. Webhook/Zapier for v2. |
-| Payment processing / SaaS billing | Complex (Stripe integration, subscription management, dunning). Not needed to validate demand. | Handle billing offline/manually for v1. |
-| WordPress plugin | Limits market to WordPress only; script embed works everywhere. | Script tag embed that works on any site. |
-| Contractor marketplace / matching | Completely different business model (Instant Roofer does this). Conflicts with white-label value prop. | Each company gets their own branded widget. |
-| Permit cost estimation | Varies wildly by municipality; impossible to maintain accurate data. | Mention "permit costs not included" in disclaimer. |
-| Exact/guaranteed pricing | Creates liability. All competitors show ranges and include disclaimers. | Always show ranges. Include "estimate only" language. |
-| Full theme control (fonts, spacing, layout) | Over-engineering for v1. Roofing companies care about logo and colors, not typography. | Logo + primary color for v1. Expand if demanded. |
+---
 
 ## Feature Dependencies
 
 ```
-Material Type Selection --> Pricing Formula (material drives base cost)
-Roof Pitch Selection ----> Pricing Formula (pitch drives multiplier)
-Complexity Selection ----> Pricing Formula (complexity drives multiplier)
-Square Footage Input ----> Pricing Formula (base area input)
-Tear-off Toggle ---------> Pricing Formula (adds per-sqft cost)
-Regional Factor ---------> Pricing Formula (state-based multiplier)
+PlaceAutocompleteElement (address input)
+    └──requires──> Maps JavaScript API loaded (libraries: ['places', 'geometry'])
+    └──enables──>  Map pan/zoom to address LatLng
+    └──produces──> formData.address (string, for lead email)
 
-Pricing Formula ---------> Price Range Display (formula output)
-Contact Info Capture ----> Lead Email Notification (data to send)
-Price Range Display -----> Lead Email Notification (include estimate in email)
+Satellite map panel
+    └──requires──> Maps JavaScript API loaded
+    └──requires──> PlaceAutocompleteElement selection (to center on address)
+    └──loads LAZILY (only when "Measure on map" toggle activated)
 
-Company Logo Upload -----> Widget Rendering (branding)
-Company Color Setting ---> Widget Rendering (theming)
-Pricing Overrides -------> Pricing Formula (company-specific adjustments)
+Terra Draw polygon mode
+    └──requires──> Maps JavaScript API map instance
+    └──requires──> terra-draw npm package (TerraDrawGoogleMapsAdapter + TerraDrawPolygonMode)
+    └──produces──> GeoJSON polygon via draw.getSnapshot()
 
-Embeddable Script -------> Widget Rendering (delivery mechanism)
+google.maps.geometry.spherical.computeArea()
+    └──requires──> libraries: ['geometry'] included in API load
+    └──requires──> Closed polygon LatLng array from Terra Draw snapshot
+    └──produces──> Area in square meters → × 10.764 → footprint sqft
+
+Pitch-adjusted sqft
+    └──requires──> footprint sqft (from computeArea)
+    └──requires──> formData.pitch (already exists — user must select pitch)
+    └──produces──> roof surface sqft → written to formData.sqft
+
+formData.sqft auto-fill
+    └──requires──> Pitch-adjusted sqft calculation
+    └──integrates-with──> Existing sqft input in RoofDetails.tsx (same field, same signal)
+    └──does-not-replace──> Manual sqft entry (both paths write to same formData.sqft)
+
+Address in lead email
+    └──requires──> PlaceAutocompleteElement selection
+    └──integrates-with──> formData signal (add optional `address` field)
+    └──integrates-with──> API POST body Zod schema (add optional address string)
+    └──integrates-with──> Lead email template (Resend, add address line)
 ```
 
-## MVP Recommendation
+### Dependency Notes
 
-Prioritize (aligned with PROJECT.md):
-
-1. **Estimate engine with pricing formula** -- This IS the product. Without credible estimates, nothing else matters.
-2. **4-step widget flow** -- Address/sqft, roof details (pitch + complexity + material), contact info, results display.
-3. **Email lead notification** -- Core value delivery to paying customer (the roofing company).
-4. **Embeddable script tag** -- Distribution mechanism.
-5. **Basic branding (logo + color)** -- Minimum viable white-labeling.
-6. **Pricing override settings** -- Key differentiator; lets each company customize to their market.
-
-Defer:
-- **Regional cost factor**: Useful but can be approximated via pricing overrides per company. Add in v1.1.
-- **Multi-material comparison in results**: Nice-to-have. v1 can show one material at a time.
-- **QR code generation**: Trivial to add later, low priority.
-- **Tear-off toggle**: Good accuracy boost, but adds form complexity. Consider for v1.1.
-- **Lead analytics / tracking**: v2 feature after validating core product.
-- **Webhook / Zapier**: v2 feature.
+- **Maps API must load lazily.** The Google Maps JS bundle is large (not tree-shakeable). Loading it on widget mount would bloat every page the widget is on. Load only when the user activates "Measure on map" mode. Use dynamic `<script>` injection or the `@googlemaps/js-api-loader` package with deferred loading.
+- **Both `places` and `geometry` libraries must be declared at load time.** The Maps JS API requires the `libraries` parameter at initialization. You cannot load them piecemeal after the fact.
+- **Terra Draw is a separate npm package.** It is not bundled with the Maps API. Install `terra-draw` (Apache 2.0 license). It should also be lazily imported so it doesn't affect the base 28KB widget bundle.
+- **Pitch dropdown must be selected before or after measurement.** The pitch-adjusted sqft calculation reads `formData.pitch`. If pitch has not been selected when the polygon is closed, display the raw footprint sqft and show a note: "Select a pitch above to apply surface area adjustment." Recalculate when pitch is selected.
+- **`formData` needs one new field.** Add `address: ''` to the existing signal in `form.ts`. All other fields are unchanged.
 
 ---
 
-## Roofing Pricing Formulas and Standard Multipliers
+## MVP Definition
 
-This section provides the data needed to build the estimate engine.
+### Launch With (v1.1 — this milestone)
 
-### Core Estimate Formula
+- [ ] "Measure on map" / "Enter manually" toggle in RoofDetails step
+- [ ] Address autocomplete input (`PlaceAutocompleteElement`, new Places API)
+- [ ] Satellite (hybrid) map panel, lazy-loaded on toggle activation
+- [ ] Polygon drawing via Terra Draw (`TerraDrawPolygonMode`)
+- [ ] Real-time sqft display as polygon vertices are added
+- [ ] "Done" button to close polygon (mobile UX)
+- [ ] Undo last point OR Clear and restart button
+- [ ] Auto-fill `formData.sqft` on polygon close (pitch-adjusted if pitch already selected)
+- [ ] Pitch-adjustment notification ("Roof surface at [pitch] pitch: X sqft")
+- [ ] Manual sqft entry remains fully functional as the default path
+- [ ] `formData.address` populated from autocomplete, included in lead email
 
-```
-Estimated Cost = Base Material Cost per SqFt
-               x Roof Square Footage
-               x Pitch Multiplier
-               x Complexity Multiplier
-               x (1 + Waste Factor)
-               x Regional Factor (optional)
-               + Tear-off Cost (optional)
-               + Margin/Markup
-```
+### Add After Validation (v1.2)
 
-For a consumer-facing estimate, simplify to:
+- [ ] Pitch recalculation when pitch changes AFTER measurement — trigger: user confusion bug reports (currently needs manual re-measure or override)
+- [ ] "My location" geolocation button — trigger: mobile usage data shows address typing friction
+- [ ] Map confirmation thumbnail in the estimate display step — trigger: feedback that estimate feels abstract without a visual
 
-```
-Low Estimate  = (sqft x pitch_mult x complexity_mult x material_cost_low)  x (1 + waste)
-High Estimate = (sqft x pitch_mult x complexity_mult x material_cost_high) x (1 + waste)
-```
+### Future Consideration (v2+)
 
-The range naturally accounts for labor variation, regional differences, and contractor margin without needing to expose those variables to the homeowner.
-
-### Material Base Costs (Installed, per Square Foot, 2026)
-
-These are national averages including labor and materials. Sources: HomeGuide, Modernize, FieldCamp, ThisOldHouse (2025-2026 data).
-
-| Material | Cost Low ($/sqft) | Cost High ($/sqft) | Notes |
-|----------|-------------------|---------------------|-------|
-| 3-Tab Asphalt Shingles | $3.50 | $4.75 | Most affordable, 15-20 year lifespan |
-| Architectural Asphalt Shingles | $4.00 | $5.75 | Most popular choice, 25-30 year lifespan |
-| Premium Asphalt Shingles | $4.50 | $6.00 | 50-year warranty options |
-| Metal (Corrugated/Panels) | $6.00 | $8.50 | Budget metal option |
-| Metal Shingles | $7.50 | $10.50 | Metal look with shingle profile |
-| Standing Seam Metal | $12.00 | $18.00 | Premium metal, 40-70 year lifespan |
-| Concrete Tile | $6.50 | $10.00 | Mediterranean aesthetic |
-| Clay Tile | $11.00 | $22.00 | Premium tile, regional popularity |
-| Natural Slate | $15.00 | $30.00 | Ultra-premium, 75-100+ year lifespan |
-
-**Recommendation for v1:** Offer 3-tab shingles, architectural shingles, and standing seam metal as the default material options. These cover the vast majority of residential projects. Let companies add/remove materials via settings.
-
-### Roof Pitch Multipliers
-
-Pitch multipliers account for the increased surface area of a sloped roof compared to its flat footprint. Derived from Pythagorean theorem: `sqrt((rise/12)^2 + 1)`.
-
-| Pitch Category | Pitch Range | Multiplier | Used In Calculator As |
-|----------------|-------------|------------|----------------------|
-| Flat | 0-2/12 | 1.00 | "Flat" |
-| Low | 3/12 | 1.03 | "Low Slope" |
-| Low | 4/12 | 1.05 | "Low Slope" |
-| Medium | 5/12 | 1.08 | "Medium" |
-| Medium | 6/12 | 1.12 | "Medium" |
-| Steep | 7/12 | 1.16 | "Steep" |
-| Steep | 8/12 | 1.20 | "Steep" |
-| Very Steep | 9/12 | 1.25 | "Steep" |
-| Very Steep | 10/12 | 1.30 | "Steep" |
-| Very Steep | 12/12 | 1.41 | "Steep" |
-
-**Recommendation for v1 simplified categories:**
-
-| User Selection | Multiplier Used | Rationale |
-|----------------|-----------------|-----------|
-| Flat | 1.00 | No slope adjustment |
-| Low (3-4/12) | 1.05 | Midpoint of low range |
-| Medium (5-7/12) | 1.12 | Midpoint of medium range; 6/12 is most common residential pitch |
-| Steep (8-12/12) | 1.25 | Conservative midpoint; accounts for extra labor difficulty |
-
-Confidence: HIGH -- pitch multipliers are derived from geometry and consistent across all sources.
-
-### Complexity Multipliers
-
-Complexity accounts for extra labor time, waste, and difficulty from roof design features (hips, valleys, dormers, multiple levels). These are NOT standardized across the industry -- they are contractor rules of thumb.
-
-| Complexity Level | Multiplier | Description | Waste Factor |
-|------------------|------------|-------------|--------------|
-| Simple / Ranch | 1.00 | Gable roof, 1-2 planes, no dormers, no valleys | 10% |
-| Average | 1.15 | Hip roof or gable with 1-2 valleys, minor features | 12-15% |
-| Complex / Multi-level | 1.35 | Multiple dormers, many valleys/hips, steep sections, multi-story | 15-20% |
-
-**Recommendation for v1:** Use the multiplier AND build the waste factor into it (don't expose waste as a separate input). So:
-
-| User Selection | Effective Multiplier (includes waste) |
-|----------------|---------------------------------------|
-| Simple / Ranch | 1.10 (1.00 x 1.10 waste) |
-| Average | 1.32 (1.15 x 1.15 waste) |
-| Complex | 1.58 (1.35 x 1.17 waste) |
-
-Confidence: MEDIUM -- complexity multipliers vary by contractor. These are reasonable midpoints from multiple sources but companies should be able to override.
-
-### Tear-Off / Removal Costs
-
-| Scenario | Additional Cost per SqFt |
-|----------|--------------------------|
-| No existing roof (new construction) | $0.00 |
-| Single layer tear-off (most common) | $1.00 - $1.50 |
-| Two layer tear-off | $1.50 - $3.00 |
-| Heavy material tear-off (tile, slate) | $3.00 - $5.00 |
-
-**Recommendation for v1:** If including tear-off toggle, add a flat $1.25/sqft to both low and high estimates when "existing shingles" is selected. Keep it simple.
-
-### Regional Cost Multipliers (by State)
-
-These adjust national average pricing to local market conditions. Source: RoofObservations.com (construction cost index data).
-
-| Region | States | Multiplier Range |
-|--------|--------|-----------------|
-| High Cost | CA, CT, MA, NY, HI, AK | 1.15 - 1.25 |
-| Above Average | IL, NJ, OR, WA, DE, RI, MN | 1.05 - 1.11 |
-| Average | MI, WI, IA, PA, MO, NV, NH | 0.93 - 1.03 |
-| Below Average | IN, KS, CO, MT, ND, OH, WV, MD | 0.90 - 0.95 |
-| Low Cost | AL, AR, FL, GA, ID, KY, LA, ME, MS, NC, NE, NM, OK, SC, TN, TX, UT, VA, VT, WY, AZ, SD | 0.80 - 0.89 |
-
-**Full state-level multiplier table (for implementation):**
-
-| State | Factor | State | Factor | State | Factor |
-|-------|--------|-------|--------|-------|--------|
-| AL | 0.88 | LA | 0.82 | OH | 0.92 |
-| AK | 1.25 | ME | 0.86 | OK | 0.83 |
-| AZ | 0.86 | MD | 0.93 | OR | 1.08 |
-| AR | 0.80 | MA | 1.18 | PA | 0.96 |
-| CA | 1.15 | MI | 1.03 | RI | 1.07 |
-| CO | 0.91 | MN | 1.06 | SC | 0.86 |
-| CT | 1.18 | MS | 0.80 | SD | 0.89 |
-| DE | 1.05 | MO | 0.95 | TN | 0.85 |
-| FL | 0.85 | MT | 0.91 | TX | 0.82 |
-| GA | 0.88 | NE | 0.88 | UT | 0.89 |
-| HI | 1.20 | NV | 0.95 | VT | 0.85 |
-| ID | 0.88 | NH | 0.93 | VA | 0.85 |
-| IL | 1.10 | NJ | 1.11 | WA | 1.05 |
-| IN | 0.90 | NM | 0.88 | WV | 0.93 |
-| IA | 0.97 | NY | 1.18 | WI | 0.99 |
-| KS | 0.90 | NC | 0.80 | WY | 0.90 |
-| KY | 0.87 | ND | 0.92 | National Avg | 1.00 |
-
-**Recommendation for v1:** Do NOT auto-apply regional factors. Instead, let each roofing company's pricing overrides implicitly capture their regional costs. Add auto-regional-adjustment as a v1.1 feature for companies that want to use default pricing. Store the table for future use.
-
-Confidence: MEDIUM -- these are approximate construction cost indices, not roofing-specific multipliers. They are directionally correct but rough.
-
-### Example Calculations
-
-**Example 1: Basic ranch home, architectural shingles**
-- Square footage: 1,800 sqft (footprint)
-- Pitch: Medium (6/12) -- multiplier: 1.12
-- Complexity: Simple -- effective multiplier (with waste): 1.10
-- Material: Architectural shingles ($4.00 - $5.75/sqft)
-
-```
-Low:  1,800 x 1.12 x 1.10 x $4.00 = $8,870
-High: 1,800 x 1.12 x 1.10 x $5.75 = $12,751
-Display: "$8,900 - $12,800" (rounded to nearest $100)
-```
-
-**Example 2: Complex multi-level, standing seam metal**
-- Square footage: 2,500 sqft
-- Pitch: Steep (8/12) -- multiplier: 1.25
-- Complexity: Complex -- effective multiplier (with waste): 1.58
-- Material: Standing seam metal ($12.00 - $18.00/sqft)
-
-```
-Low:  2,500 x 1.25 x 1.58 x $12.00 = $59,250
-High: 2,500 x 1.25 x 1.58 x $18.00 = $88,875
-Display: "$59,300 - $88,900"
-```
-
-**Example 3: Average home, 3-tab shingles (budget option)**
-- Square footage: 1,500 sqft
-- Pitch: Low (4/12) -- multiplier: 1.05
-- Complexity: Average -- effective multiplier (with waste): 1.32
-- Material: 3-tab shingles ($3.50 - $4.75/sqft)
-
-```
-Low:  1,500 x 1.05 x 1.32 x $3.50 = $7,277
-High: 1,500 x 1.05 x 1.32 x $4.75 = $9,876
-Display: "$7,300 - $9,900"
-```
-
-### Formula Implementation Notes
-
-1. **Always show ranges** -- never a single number. This manages expectations and reduces liability.
-2. **Round to nearest $100** -- false precision ($8,873.42) looks algorithmic and untrustworthy to homeowners.
-3. **Include disclaimer** -- "This is an estimate only. Final pricing requires an on-site inspection." Every competitor does this.
-4. **Let companies override everything** -- base costs, multipliers, margins. The default formula gets companies started, but their local expertise should drive final numbers.
-5. **Consider a "confidence buffer"** -- widen the range by 10-15% on each side. Better to under-promise. A $10,000-$14,000 range that contains the actual bid price builds more trust than a $11,000-$12,500 range that misses.
+- [ ] Multi-polygon for complex roofs (dormers, additions) — trigger: contractor feedback that single polygon is too inaccurate for certain roof types
+- [ ] Saved address / measurement for return visits — trigger: evidence of return-visit use case
+- [ ] AI-assisted polygon snapping to roof edges — trigger: if third-party APIs become affordable at scale
 
 ---
 
-## Competitive Landscape Summary
+## Feature Prioritization Matrix
 
-### Roofr (Instant Estimator)
-- **Model:** Full roofing SaaS platform with embeddable estimator as an add-on
-- **Key features:** Satellite roof measurement, CRM, proposal generation, instant estimator widget
-- **Pricing:** Tiered SaaS plans; estimator is add-on to any plan
-- **Strengths:** Full platform, address-based measurement, lead-to-CRM pipeline
-- **Weakness for our market:** Expensive and complex for small companies that just want leads. Overkill.
-- **Source:** [Roofr Estimator Guide](https://roofr.com/blog/roofr-instant-estimator-guide), [Roofr Pricing](https://roofr.com/pricing)
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Address autocomplete | HIGH | LOW | P1 |
+| Satellite map display | HIGH | LOW | P1 |
+| Terra Draw polygon mode | HIGH | MEDIUM | P1 |
+| Real-time sqft display | HIGH | LOW | P1 |
+| Auto-fill sqft field | HIGH | LOW | P1 |
+| Manual fallback (already built) | HIGH | NONE | P1 |
+| "Done" button to close polygon | HIGH (mobile) | LOW | P1 |
+| Pitch-adjusted sqft | MEDIUM | LOW | P1 |
+| Address in lead email | MEDIUM | LOW | P1 |
+| Undo last point | MEDIUM | LOW | P1 |
+| Mode toggle UI | MEDIUM | LOW | P1 |
+| Geolocation button | LOW | LOW | P2 |
+| Map thumbnail in estimate display | LOW | MEDIUM | P3 |
+| Multi-polygon | LOW | HIGH | P3 |
 
-### Roofle
-- **Model:** Instant quote tool using satellite imagery
-- **Key features:** Address-based measurement, multi-material comparison, financing estimates, brand-specific products (CertainTeed, Owens Corning)
-- **Strengths:** Product-specific pricing, financing integration
-- **Weakness for our market:** Focused on specific manufacturer partnerships, less accessible for independent contractors
-- **Source:** [How to Use Roofle](https://www.lnshomeimprovements.com/how-to-use-roofle-roof-cost-calculator/), [Instant Quote via Roofle](https://bestexteriorsinc.com/blog/instant-roof-quote/)
+**Priority key:**
+- P1: Must have for v1.1 launch
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
 
-### Instant Roofer
-- **Model:** AI-powered measurement + contractor marketplace
-- **Key features:** No-signup estimate, AI roof scanning (98% accuracy claim), contractor matching, embeddable widget
-- **Strengths:** Privacy-focused (no info required for estimate), AI measurement
-- **Weakness for our market:** Marketplace model conflicts with white-label approach; they match to THEIR contractors
-- **Source:** [Instant Roofer](https://www.instantroofer.com/), [Embed Features](https://www.instantroofer.com/instant-roofer-embed-enhancements-and-features/)
+---
 
-### SimpleRoof Estimates
-- **Model:** Embeddable lead generation widget (closest competitor to our product)
-- **Key features:** 4-step form flow, instant estimate, lead capture
-- **Minimal web presence** -- could not find detailed feature documentation. Appears to be a smaller player.
-- **Source:** [simpleroofestimates.com](https://simpleroofestimates.com) (limited information available)
+## UX Flow (Concrete)
 
-### Our Positioning
-The gap in the market: **a simple, affordable, embeddable estimate widget that small roofing companies can set up in minutes with their own branding and pricing.** Roofr is a full platform (expensive, complex). Roofle is manufacturer-focused. Instant Roofer is a marketplace. SimpleRoof Estimates is the closest competitor but appears to have limited features. Our product targets the "just give me a lead capture widget" niche with the added value of customizable pricing formulas.
+The existing 3-step flow is unchanged in structure. Only Step 1 (RoofDetails) gains new content within its existing step boundary.
+
+**Step 1 (RoofDetails) — enhanced layout:**
+
+```
+[ Get Your Roof Estimate ]
+
+  ( Enter manually )   (* Measure on map )    ← toggle, defaults to "Enter manually"
+
+  --- WHEN "MEASURE ON MAP" ACTIVE ---
+
+  [ 123 Main St, Springfield, IL         ]    ← PlaceAutocompleteElement
+    Dropdown predictions appear as user types
+    On selection: map centers on address at zoom 19
+
+  ┌─────────────────────────────────────────┐
+  │                                         │
+  │     [ satellite + labels map ]          │  ← 350px desktop / 220px mobile
+  │                                         │
+  │  Click to place roof corners.           │
+  │  Footprint: 1,240 sqft                  │  ← live update
+  │  Roof surface (Medium pitch): 1,389 sqft│  ← appears when pitch is set
+  │                                         │
+  └─────────────────────────────────────────┘
+
+  [ Undo Last Point ]     [ Done Drawing ]    ← appears after 1st vertex placed
+  [ Clear & Start Over ]                      ← appears after polygon closed
+
+  --- EITHER MODE ---
+
+  Square Footage:  [ 1389          ]          ← pre-filled from map OR typed manually
+  Roof Pitch:      [ Medium      ▼ ]
+  Material:        [ Architectural Shingles ▼ ]
+
+  [ Next ]
+```
+
+**Key UX rules:**
+1. Map mode is opt-in. Default to "Enter manually" so the widget looks identical to v1.0 for users who know their sqft.
+2. The sqft field stays editable even after the map fills it. This is essential for homeowner trust and for correcting measurement errors.
+3. On mobile, map height is 220px (not 350px) so the sqft/pitch/material selects remain accessible below without excessive scrolling.
+4. Map type must be `hybrid` (not `satellite`). Labels help homeowners confirm they are looking at the correct property before tracing.
+5. Pitch adjustment is displayed as an informational note, not a separate input. The pitch dropdown is the same one used for pricing — it does double duty.
+6. Address autocomplete should be restricted to US addresses (the target market) using `componentRestrictions: { country: 'us' }`.
+
+---
+
+## Competitor Feature Analysis
+
+| Feature | Roofr / EagleView (Pro) | mapscaping.com (Free) | Our v1.1 Approach |
+|---------|-------------------------|-----------------------|-------------------|
+| Address search | Google Places autocomplete | Nominatim (OpenStreetMap) | Google Places new API (more accurate for US residential) |
+| Map source | Google or Nearmap tiles | OpenStreetMap / Leaflet | Google Maps hybrid (consistent with Google Places) |
+| Drawing tool | Custom polygon editor | Leaflet.draw library | Terra Draw (Google's documented replacement for deprecated DrawingManager) |
+| Area calculation | Server-side, in report | Client-side geodesic | Client-side via `geometry.spherical.computeArea()` — no server round-trip needed |
+| Pitch adjustment | Separate pitch input | Manual angle input | Reads existing pitch dropdown, auto-adjusts immediately |
+| Mobile support | Dedicated native app | Web, limited | Web — explicit mobile layout (smaller map, "Done" button to close polygon) |
+| Multi-polygon | Yes | Yes | No for v1.1 — single polygon is sufficient for 90% of residential roofs |
+| Forced flow | Map required | Map required | Toggle — map is opt-in, manual entry is default |
+| Price | $10–$25 per report (pro tools) | Free | Free — embedded in the estimate widget |
+
+---
+
+## API Constraints and Costs
+
+**Google Maps JavaScript API — map loads:**
+- $7 per 1,000 dynamic map loads (after monthly free credit)
+- Each widget session where user activates "Measure on map" = 1 load event
+- At 1,000 map-mode activations/month → ~$7/month. At 10,000 → ~$70/month.
+- Lazy loading (only on toggle) means users who use manual entry generate no cost.
+- Confidence: MEDIUM (pricing page consulted; Google restructured pricing March 2025)
+
+**Google Places Autocomplete:**
+- `PlaceAutocompleteElement` is session-based: autocomplete requests are free within a session
+- `place.fetchFields()` triggers a Place Details charge (~$17/1,000 requests for basic fields)
+- At 1,000 address lookups/month → ~$17/month
+- Confidence: MEDIUM (verified against Google Places billing docs)
+
+**Terra Draw:**
+- Open source, Apache 2.0 license, zero API costs
+- Bundle: ~50KB minified (lazy import — does not affect base 28KB widget bundle)
+
+**API key exposure:**
+The Google Maps API key will be visible in the widget bundle (this is unavoidable and is normal for client-side Maps embeds). Mitigate by restricting the key to specific HTTP referrers in Google Cloud Console — set allowed referrers to the domains of companies using the embed.
 
 ---
 
 ## Sources
 
-- [FieldCamp: How to Price a Roofing Job](https://fieldcamp.ai/blog/how-to-price-a-roofing-job/) -- pricing formula, material costs, pitch multipliers
-- [HomeGuide: Roof Replacement Cost 2026](https://homeguide.com/costs/roof-replacement-cost) -- material pricing data
-- [HomeGuide: Roofing Material Prices 2026](https://homeguide.com/costs/roofing-material-prices) -- per-sqft costs
-- [RoofObservations: Construction Costs by State](https://roofobservations.com/relative-construction-costs-by-state/) -- regional multipliers
-- [Roofr: Instant Estimator Guide](https://roofr.com/blog/roofr-instant-estimator-guide) -- competitor features
-- [Roofr: Waste Factor Guide](https://roofr.com/blog/how-to-calculate-roof-waste-factor) -- waste percentages
-- [Ridgeline Roofing: 2026 Costs](https://ridgeline-roofing.com/news/roof-replacement-costs-in-2026-what-homeowners-should-expect/) -- 2026 pricing trends
-- [Rhoden Roofing: Pitch Multipliers](https://rhodenroofing.com/pitch-multiplier-roofing-terms-that-impacts-roof/) -- pitch factor reference
-- [Instant Roofer](https://www.instantroofer.com/) -- competitor analysis
-- [Roofle](https://www.roofle.com/) -- competitor analysis
+- [Drawing Layer deprecation — Google official docs](https://developers.google.com/maps/documentation/javascript/drawinglayer) — confirmed August 2025 deprecation, May 2026 removal
+- [Terra Draw Google Maps example — Google official docs](https://developers.google.com/maps/documentation/javascript/examples/map-drawing-terradraw) — updated 2026-03-02, documents `TerraDrawGoogleMapsAdapter` and `TerraDrawPolygonMode`
+- [Terra Draw GitHub](https://github.com/JamesLMilner/terra-draw) — TerraDrawPolygonMode, GeoJSON output, Google Maps adapter; Apache 2.0
+- [Place Autocomplete Widget — Google Maps Platform](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new) — `PlaceAutocompleteElement`, `gmp-select` event, `fetchFields()`
+- [Autocomplete session pricing — Google Maps Platform](https://developers.google.com/maps/documentation/javascript/session-pricing) — session-based billing for autocomplete
+- [Geometry Library — Google Maps Platform](https://developers.google.com/maps/documentation/javascript/geometry) — `computeArea()` returns sq meters; × 10.764 = sq feet
+- [Google Maps Platform pricing](https://developers.google.com/maps/billing-and-pricing/pricing) — dynamic maps $7/1K, Places Details ~$17/1K
+- [react-google-maps Drawing Library deprecation discussion](https://github.com/visgl/react-google-maps/discussions/825) — community confirmation, Terra Draw recommended
+- [Mapscaping free roof area calculator](https://mapscaping.com/free-interactive-roof-area-calculator/) — UX reference for address → satellite → polygon → area → pitch adjustment flow
+- [1ESX: How to Measure a Roof from Satellite 2026](https://www.1esx.com/how-to-measure-a-roof-from-a-satellite-for-free-a-2026-guide/) — typical polygon tool UX patterns
+
+---
+*Feature research for: Google Maps Roof Measurement (v1.1 milestone)*
+*Researched: 2026-03-10*

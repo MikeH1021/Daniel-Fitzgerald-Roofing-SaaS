@@ -1,362 +1,560 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** Embeddable SaaS widget (roofing estimate calculator)
-**Researched:** 2026-03-09
+**Domain:** Google Maps roof measurement integration into existing Preact Shadow DOM widget
+**Researched:** 2026-03-10
+**Confidence:** HIGH (Google official docs verified, deprecation timeline confirmed from official source)
 
-## Recommended Architecture
+---
 
-Three distinct deployable components plus a transactional email service:
-
-```
-+------------------+        +-------------------+        +------------------+
-|  Embeddable      |  API   |  Backend API      |  SMTP  |  Email Service   |
-|  Widget (JS)     | -----> |  Server           | -----> |  (Resend)        |
-|  (CDN-hosted)    |        |  (Node/Express    |        |                  |
-|                  |        |   or Hono)        |        +------------------+
-+------------------+        |                   |
-                            |                   |
-+------------------+        |                   |        +------------------+
-|  Admin Settings  |  API   |                   |  R/W   |  Database        |
-|  Page (SPA)      | -----> |                   | <----> |  (SQLite/Turso   |
-|                  |        |                   |        |   or Postgres)   |
-+------------------+        +-------------------+        +------------------+
-```
-
-**Why this shape:** The widget must be a standalone JS bundle served from a CDN -- it cannot share a deployment with the admin UI or API. The admin page is a separate, conventional web app behind authentication. The API sits between both frontends and the database. Email delivery is outsourced to a transactional email provider because reliable deliverability is the core value proposition.
-
-### Component Boundaries
-
-| Component | Responsibility | Communicates With | Deployment |
-|-----------|---------------|-------------------|------------|
-| **Widget Bundle** | Multi-step estimate form, renders inside Shadow DOM on customer sites | Backend API (HTTPS POST) | CDN (static JS file) |
-| **Backend API** | Tenant config lookup, estimate calculation, lead storage, email dispatch | Database, Email service, both frontends | Single server or serverless |
-| **Admin Settings Page** | Company branding config (logo, color), pricing override management, embed code copy | Backend API | Static hosting or same server |
-| **Database** | Tenant configs, pricing parameters, lead records | Backend API only |  Managed DB |
-| **Email Service** | Transactional lead notification emails to roofing companies | Backend API (outbound only) | Third-party SaaS |
-
-### Data Flow
-
-**Widget Submission Flow (the core path):**
+## Existing Architecture (What We're Integrating Into)
 
 ```
-1. Homeowner lands on roofing company website
-2. Browser loads widget.js from CDN (script tag with data-company-id)
-3. Widget reads data-company-id from script tag via document.currentScript
-4. Widget calls GET /api/config/:companyId to fetch branding + pricing params
-5. Widget renders form inside Shadow DOM with company colors/logo
-6. Homeowner fills 4-step form: address/sqft -> pitch -> complexity -> contact info
-7. Widget calls POST /api/estimates with form data + companyId
-8. Backend calculates price range using company's pricing params
-9. Backend stores lead in database
-10. Backend sends lead email to company via Resend
-11. Backend returns estimate result to widget
-12. Widget displays price range to homeowner
+Host Website
+  └── <script data-company-id="..."> (single IIFE, 28KB gzipped)
+        └── Shadow DOM Host (#roofing-widget-host)
+              ├── <style> (inlined widget.css, all: initial on :host)
+              └── #roofing-widget-root
+                    └── Preact App (signals-based state)
+                          ├── Step 0: RoofDetails (sqft + pitch + material)
+                          ├── Step 1: ContactInfo
+                          └── Step 2: EstimateDisplay
+
+State: @preact/signals (currentStep, formData, estimateResult, isLoading)
+API:   Hono on Cloudflare Workers (D1/R2)
+Build: Vite IIFE, inlineDynamicImports: true, minify: terser
 ```
 
-**Admin Configuration Flow:**
+Key constraint: `inlineDynamicImports: true` in the Vite config means everything is bundled
+into a single synchronous IIFE. Google Maps JS API (~800KB+ uncompressed) must NOT be
+bundled — it loads from Google's CDN at runtime via a dynamic `<script>` tag appended to
+`document.head`.
+
+---
+
+## New Architecture: v1.1 Google Maps Integration
+
+### System Overview
 
 ```
-1. Company owner visits admin page, authenticates
-2. Admin page loads current config via GET /api/admin/config
-3. Owner updates logo URL, brand color, pricing multipliers
-4. Admin page saves via PUT /api/admin/config
-5. Next widget load picks up new config (no cache invalidation needed for v1)
+┌──────────────────────────────────────────────────────────────────┐
+│ Shadow DOM Widget (unchanged outer shell)                         │
+│                                                                   │
+│  Step 0: RoofDetails (orchestrator — modified)                    │
+│  ├── Sub-step A: AddressInput (NEW)                               │
+│  │     ├── <input class="rc-input"> — inside Shadow DOM           │
+│  │     └── suggestions <ul> — portal in document.body            │
+│  │           (outside Shadow DOM, position: fixed)                │
+│  │                                                                │
+│  ├── Sub-step B: RoofMap (NEW)                                    │
+│  │     ├── <div class="rc-map-container"> — inside Shadow DOM     │
+│  │     │     └── google.maps.Map instance (renders here)          │
+│  │     └── Terra Draw (npm, bundled) — polygon mode               │
+│  │           draw.on('change') → GeoJSON → area.ts → sqft         │
+│  │                                                                │
+│  └── Sub-step C: SquareFootageConfirm (NEW)                       │
+│        ├── sqft input (pre-filled from map OR manual entry)       │
+│        ├── pitch selector (reused)                                │
+│        └── material selector (reused)                             │
+│                                                                   │
+│  Step 1: ContactInfo     (unchanged)                              │
+│  Step 2: EstimateDisplay (unchanged)                              │
+└──────────────────────────────────────────────────────────────────┘
+
+document.head (outside Shadow DOM):
+  └── <script src="maps.googleapis.com/...?key=KEY&loading=async">
+        └── google.maps.importLibrary('maps')   → lazy, on map step
+            google.maps.importLibrary('places') → lazy, on address step
 ```
 
-## Component Deep-Dives
+### Component Responsibilities
 
-### 1. Embeddable Widget
+| Component | Responsibility | Status |
+|-----------|----------------|--------|
+| `RoofDetails` | Orchestrates sub-steps A/B/C via internal step counter | Modify |
+| `AddressInput` | Programmatic AutocompleteSuggestion, custom-styled input, portal dropdown | New |
+| `RoofMap` | Lazy-loads Maps API, renders satellite Map, owns Terra Draw instance | New |
+| `PolygonDrawing` | Draw/clear/confirm UI controls, converts GeoJSON polygon to sqft | New |
+| `SquareFootageConfirm` | Displays calculated sqft (editable), pitch + material pickers | New |
+| `state/form.ts` | Adds `mapAddress`, `mapCoords`, `mapFootprintSqft` signals | Modify |
+| `api/client.ts` | No new network call needed (API key comes from existing config fetch) | Modify |
+| `utils/area.ts` | Pure: GeoJSON polygon → sq meters → sqft, pitch multiplier lookup | New |
 
-**Embedding pattern:** Single script tag with data attributes.
+---
 
-```html
-<script async src="https://cdn.roofcalc.com/widget.js" data-company-id="abc123"></script>
-```
-
-**Why script tag + Shadow DOM, not iframe:**
-- Shadow DOM provides CSS isolation (host page styles cannot break widget, widget styles cannot leak out) with 96%+ browser support
-- Script tag loads faster than iframe (no separate document context)
-- Widget feels native to the host page, not like a foreign embed
-- No cross-frame postMessage complexity for a simple form
-- Bundle stays small (target: under 30KB gzipped with Preact)
-
-**Why Preact over React:**
-- Preact core is ~4.5KB vs React's ~40KB. For an embeddable widget on someone else's site, every kilobyte matters
-- Same JSX/component model as React so the API is familiar
-- Real-world Preact widget bundles land at 8-15KB gzipped; React equivalents are 35-45KB
-- Preact's `preact/compat` layer is available if you need React-compatible library support later
-
-**Shadow DOM setup pattern:**
-
-```javascript
-// widget entry point (IIFE bundle)
-(function() {
-  const script = document.currentScript;
-  const companyId = script.dataset.companyId;
-
-  // Create container
-  const container = document.createElement('div');
-  container.id = 'roofcalc-widget';
-  script.parentNode.insertBefore(container, script.nextSibling);
-
-  // Attach shadow for style isolation
-  const shadow = container.attachShadow({ mode: 'open' });
-
-  // Inject styles inside shadow
-  const style = document.createElement('style');
-  style.textContent = `/* widget CSS here, or load from CDN */`;
-  shadow.appendChild(style);
-
-  // Mount Preact app into shadow root
-  const mountPoint = document.createElement('div');
-  shadow.appendChild(mountPoint);
-  render(h(App, { companyId }), mountPoint);
-})();
-```
-
-**Build tooling:** Vite with Rollup output configured for IIFE format. Produces a single `widget.js` file. CSS is inlined into the JS bundle (injected into Shadow DOM at runtime) to keep the embed to a single request.
-
-### 2. Backend API
-
-**Framework: Hono** on Node.js (or deploy to Cloudflare Workers later).
-
-Why Hono:
-- Ultrafast, lightweight (~14KB), built for edge and Node
-- First-class TypeScript
-- Built-in CORS middleware
-- Easy migration path to edge runtimes if needed later
-- Simpler than Express for an API this small
-
-**API surface (v1 -- intentionally minimal):**
-
-| Endpoint | Method | Auth | Purpose |
-|----------|--------|------|---------|
-| `/api/config/:companyId` | GET | None (public) | Widget fetches branding + pricing params |
-| `/api/estimates` | POST | None (public, rate-limited) | Submit estimate request, triggers email |
-| `/api/admin/config` | GET | Session/token | Admin reads current config |
-| `/api/admin/config` | PUT | Session/token | Admin updates config |
-| `/api/admin/embed-code` | GET | Session/token | Returns embed snippet for copy/paste |
-
-**CORS strategy:**
-
-The widget runs on arbitrary customer domains. The API must allow cross-origin requests from any origin for the public widget endpoints (`/api/config/:companyId`, `/api/estimates`). This is safe because:
-- These endpoints are read-only or write-only (no sensitive data returned)
-- Rate limiting prevents abuse
-- The companyId acts as a soft key (not a secret)
-
-For admin endpoints, restrict CORS to the admin domain only.
-
-```javascript
-// Hono CORS middleware
-app.use('/api/config/*', cors({ origin: '*' }));
-app.use('/api/estimates', cors({ origin: '*' }));
-app.use('/api/admin/*', cors({ origin: 'https://admin.roofcalc.com' }));
-```
-
-**Rate limiting:** Apply per-IP rate limiting on `/api/estimates` (e.g., 10 requests per minute) to prevent spam submissions. Use a simple in-memory store for v1, upgrade to Redis if needed.
-
-### 3. Admin Settings Page
-
-**Keep it simple.** This is a single-page settings form, not a dashboard. For v1, it needs exactly three sections:
-
-1. **Branding:** Upload/paste logo URL, pick primary color
-2. **Pricing:** Override default multipliers for pitch, complexity, and base cost per sqft
-3. **Embed Code:** Copy-paste snippet with their company ID pre-filled
-
-**Tech choice:** Build with the same Vite + Preact toolchain as the widget to keep the stack unified. Or use plain HTML + vanilla JS -- this page is simple enough that a framework is optional. Lean toward Preact for consistency.
-
-**Authentication for v1:** Simple email/password auth with session cookies. Use a lightweight auth library or roll minimal auth (bcrypt + signed cookies). No OAuth, no magic links -- keep it dead simple. Consider upgrading to a proper auth solution (Lucia, Better Auth) only if you add more admin features later.
-
-### 4. Database
-
-**Recommendation: SQLite via Turso** for v1.
-
-Why:
-- Zero infrastructure to manage (Turso is hosted SQLite with an HTTP API)
-- Perfect for the data volume (handful of companies, maybe hundreds of leads per day)
-- SQL is familiar and the schema is trivial
-- Turso supports edge replication if you move to Cloudflare Workers later
-- Free tier is generous enough for early-stage SaaS
-
-**Alternative:** PostgreSQL on Neon or Supabase if you prefer relational features or anticipate complex queries. But for v1, SQLite is simpler.
-
-**Schema (v1):**
-
-```sql
-CREATE TABLE companies (
-  id TEXT PRIMARY KEY,          -- UUID or nanoid
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,           -- Where lead notifications go
-  logo_url TEXT,
-  primary_color TEXT DEFAULT '#2563eb',
-  base_cost_per_sqft REAL DEFAULT 5.50,
-  pitch_multiplier_low REAL DEFAULT 1.0,
-  pitch_multiplier_medium REAL DEFAULT 1.15,
-  pitch_multiplier_steep REAL DEFAULT 1.35,
-  complexity_multiplier_simple REAL DEFAULT 1.0,
-  complexity_multiplier_average REAL DEFAULT 1.15,
-  complexity_multiplier_complex REAL DEFAULT 1.35,
-  password_hash TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE leads (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL REFERENCES companies(id),
-  first_name TEXT NOT NULL,
-  last_name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT,
-  address TEXT NOT NULL,
-  sqft REAL NOT NULL,
-  pitch TEXT NOT NULL,           -- 'flat', 'low', 'medium', 'steep'
-  complexity TEXT NOT NULL,      -- 'simple', 'average', 'complex'
-  estimate_low REAL NOT NULL,
-  estimate_high REAL NOT NULL,
-  consent_given INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-```
-
-### 5. Email Delivery
-
-**Recommendation: Resend.**
-
-Why Resend over SendGrid or AWS SES:
-- Developer-first API, simplest integration (single HTTP call)
-- Modern SDK with TypeScript types
-- Better deliverability defaults out of the box
-- Free tier: 100 emails/day (plenty for early-stage)
-- No separate "transactional vs marketing" pricing tiers like SendGrid
-
-**Email flow:**
+## Recommended Project Structure
 
 ```
-POST /api/estimates
-  -> Calculate estimate
-  -> Store lead in DB
-  -> Call Resend API to send lead email to company
-  -> Return estimate to widget
+packages/widget/src/
+├── components/
+│   ├── RoofDetails.tsx           # modified: sub-step orchestrator
+│   ├── AddressInput.tsx          # new: programmatic autocomplete
+│   ├── RoofMap.tsx               # new: map container + Maps API loader
+│   ├── PolygonDrawing.tsx        # new: Terra Draw controls
+│   ├── SquareFootageConfirm.tsx  # new: sqft confirm + selectors
+│   ├── ContactInfo.tsx           # unchanged
+│   └── EstimateDisplay.tsx       # unchanged
+├── state/
+│   └── form.ts                   # modified: add map signals
+├── api/
+│   └── client.ts                 # modified: config response includes googleMapsApiKey
+├── utils/
+│   └── area.ts                   # new: polygon area math (pure, unit-testable)
+├── styles/
+│   └── widget.css                # add .rc-map-container height + map control styles
+└── index.ts                      # unchanged
+
+packages/api/src/
+├── routes/
+│   └── config.ts                 # modified: return googleMapsApiKey
+└── types.ts                      # modified: add GOOGLE_MAPS_API_KEY to Bindings
 ```
 
-**Email template:** Simple HTML email with lead details. No complex templating engine needed -- use a string template or Resend's React email templates.
+### Structure Rationale
 
-**Failure handling:** If email send fails, still return the estimate to the homeowner (don't block on email). Log the failure and implement a simple retry queue later if needed. The lead is already stored in the database, so it is not lost.
+- **`utils/area.ts`** is extracted as a pure function so it can be unit-tested before any Google Maps UI exists. This is the most bug-prone calculation in the feature.
+- **`components/`** keeps each sub-step in its own file — the map step is significantly more complex than the existing steps and would overwhelm RoofDetails.tsx if inlined.
+- **API key stays in existing config endpoint** — no new network round-trip, key is scoped to the existing company config fetch.
 
-## Patterns to Follow
+---
 
-### Pattern 1: Config-at-Load, Not Config-at-Build
-**What:** Widget fetches company config from the API at runtime, not baked into the JS bundle.
-**When:** Always. Every company shares the same widget.js file.
-**Why:** One JS file on the CDN serves all customers. Branding is applied dynamically. No per-customer builds.
+## Architectural Patterns
 
-```javascript
-// Good: fetch config at runtime
-const config = await fetch(`${API_URL}/api/config/${companyId}`);
-const { logoUrl, primaryColor, pricing } = await config.json();
+### Pattern 1: Runtime Bootstrap for Google Maps JS API
 
-// Bad: build separate bundles per customer
-// widget-abc123.js with hardcoded config
+**What:** Append a `<script>` tag to `document.head` at runtime with the API key from the config response. Call `google.maps.importLibrary('places')` when the address input mounts. Call `google.maps.importLibrary('maps')` when the map step mounts.
+
+**When to use:** Always. Never bundle the Maps JS API. The CDN copy is cached across all websites that use Google Maps and benefits from Google's global CDN. Bundling it would add ~800KB to the IIFE and violate the spirit of Google's usage model.
+
+**Trade-offs:** Adds ~100-200ms latency when Maps first loads. Mitigated by starting the library bootstrap when AddressInput mounts (before the map is shown), so `importLibrary('maps')` resolves quickly by the time the user reaches RoofMap.
+
+```typescript
+// utils/mapsLoader.ts
+let bootstrapPromise: Promise<void> | null = null;
+
+export function bootstrapMapsApi(apiKey: string): Promise<void> {
+  if (bootstrapPromise) return bootstrapPromise;
+  bootstrapPromise = new Promise((resolve, reject) => {
+    const callbackName = '__rcMapsReady';
+    (window as any)[callbackName] = resolve;
+    const script = document.createElement('script');
+    // loading=async: defers execution, does not block host page
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async&callback=${callbackName}`;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return bootstrapPromise;
+}
+
+export async function loadMapsLibrary(lib: 'maps' | 'places' | 'geometry') {
+  await bootstrapPromise;
+  return (window as any).google.maps.importLibrary(lib);
+}
 ```
 
-### Pattern 2: Optimistic UI with Background Email
-**What:** Show the estimate to the homeowner immediately. Send email in the background.
-**When:** On form submission.
-**Why:** The homeowner should never wait for email delivery. The estimate display is instant feedback. Email delivery can take seconds.
+The `loading=async` flag is mandatory: without it, the bootstrap script blocks the main thread.
 
-### Pattern 3: Defensive Widget Loading
-**What:** Widget must handle edge cases on host pages gracefully.
-**When:** Always -- you do not control the host environment.
+---
 
-```javascript
-// Wrap everything in try/catch
-// Check for Shadow DOM support
-// Fail silently rather than breaking host page
-// Use 'all: initial' on shadow root to reset inherited styles
+### Pattern 2: Programmatic Autocomplete (Not PlaceAutocompleteElement)
+
+**What:** Use `google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions()` to retrieve predictions on each input keystroke. Render predictions in a custom `<ul>` portal in `document.body`. Use a standard `<input class="rc-input">` inside the Shadow DOM.
+
+**Why not `PlaceAutocompleteElement` (`gmp-place-autocomplete`):**
+
+`PlaceAutocompleteElement` is a Web Component with its own **closed Shadow DOM**. When placed inside our widget's Shadow DOM, two compounding problems arise:
+
+1. Its internal `<input>` is behind a closed Shadow boundary — no CSS from our `widget.css` can reach it. The component looks completely unstyled.
+2. The `.pac-container` suggestions dropdown appends to `document.body` with `position: absolute` using coordinates relative to the `PlaceAutocompleteElement`'s position. When that element is nested inside a Shadow DOM, the dropdown positions incorrectly (viewport coordinate mismatch).
+
+Using the programmatic API gives full control over both the input element (identical to existing `rc-input` fields) and the dropdown placement.
+
+**Note on API availability:** As of March 1, 2025, `google.maps.places.AutocompleteService` and `google.maps.places.Autocomplete` (the legacy widget) are not available to new customers. Use `AutocompleteSuggestion` instead.
+
+```typescript
+// AddressInput.tsx — abbreviated
+export function AddressInput({ onSelect }: { onSelect: (coords: LatLng, address: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleInput(value: string) {
+    if (value.length < 3) return;
+    const { suggestions } = await google.maps.places.AutocompleteSuggestion
+      .fetchAutocompleteSuggestions({ input: value });
+    updateSuggestionsPortal(suggestions, inputRef.current!, onSelect);
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      class="rc-input"
+      placeholder="Enter your home address"
+      onInput={(e) => handleInput((e.target as HTMLInputElement).value)}
+    />
+  );
+}
 ```
 
-### Pattern 4: Company ID as Public Identifier
-**What:** The company ID in the embed code is a public, non-secret identifier. It is not an API key.
-**When:** Widget config lookup, estimate submission.
-**Why:** Anyone can view-source the embed code. The company ID identifies which config to load but does not grant any write access to admin endpoints.
+---
 
-## Anti-Patterns to Avoid
+### Pattern 3: Suggestions Dropdown as document.body Portal
 
-### Anti-Pattern 1: iframe for a Simple Form Widget
-**What:** Using an iframe to embed the calculator.
-**Why bad:** Adds cross-origin postMessage complexity, fixed-height problems on mobile, slower load, feels disconnected from host page. iframes are appropriate for payment forms or authentication flows where bulletproof isolation is required -- not for a lead capture form.
-**Instead:** Shadow DOM provides sufficient style isolation for this use case.
+**What:** Render the autocomplete `<ul>` as a child of `document.body`, positioned with `position: fixed` based on `getBoundingClientRect()` of the Shadow DOM input.
 
-### Anti-Pattern 2: Per-Customer Widget Builds
-**What:** Generating a separate JS bundle for each roofing company with their config baked in.
-**Why bad:** Breaks CDN caching, requires a build pipeline per customer, slow onboarding.
-**Instead:** Single universal widget.js that reads company ID from data attribute and fetches config at runtime.
+**When to use:** Any floating UI element (dropdown, tooltip, popover) that originates inside a Shadow DOM but must overflow its container or appear above the host page's stacking context.
 
-### Anti-Pattern 3: Synchronous Widget Loading
-**What:** Loading the widget script without `async` attribute.
-**Why bad:** Blocks host page rendering. Roofing company sites are often WordPress/Wix with already-heavy page loads.
-**Instead:** Always use `<script async>` and initialize only after DOM is ready.
+**Trade-offs:** Manual cleanup required on unmount. Must use `position: fixed` (not `absolute`) to handle host page scroll containers correctly. Z-index must be high enough to clear the host site.
 
-### Anti-Pattern 4: Storing Secrets in Widget Code
-**What:** Embedding API keys, email credentials, or admin tokens in the widget JS bundle.
-**Why bad:** The widget runs on untrusted host pages. Any user can inspect the source.
-**Instead:** Public-facing widget uses only the company ID (a public identifier). All sensitive operations (email sending, config updates) happen server-side behind authenticated admin endpoints.
+```typescript
+// Lifecycle: create portal on mount, remove on unmount
+useEffect(() => {
+  const portal = document.createElement('div');
+  portal.id = 'rc-autocomplete-portal';
+  portal.style.cssText = 'position:fixed;z-index:2147483647;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,.1);';
+  document.body.appendChild(portal);
+  return () => portal.remove();
+}, []);
 
-## Scalability Considerations
+// On each fetch result: position portal relative to input
+function positionPortal(inputEl: HTMLInputElement) {
+  const r = inputEl.getBoundingClientRect();
+  portal.style.top = `${r.bottom}px`;
+  portal.style.left = `${r.left}px`;
+  portal.style.width = `${r.width}px`;
+}
+```
 
-| Concern | At 10 companies | At 100 companies | At 1,000 companies |
-|---------|-----------------|-------------------|---------------------|
-| Widget bundle | Single CDN file, no concern | Same file, CDN handles traffic | Same. CDN scales horizontally |
-| Config API | Direct DB lookup | Add response caching (60s TTL) | Cache in Redis or edge KV store |
-| Estimate submissions | In-memory rate limit | In-memory still fine | Redis-backed rate limiting |
-| Email delivery | Resend free tier | Resend Pro ($20/mo) | Resend Business, monitor deliverability |
-| Database | SQLite handles easily | SQLite still fine | Consider Postgres migration |
-| Admin auth | Simple sessions | Simple sessions | Add proper auth provider |
+---
+
+### Pattern 4: Terra Draw for Polygon Drawing
+
+**What:** Install `terra-draw` as an npm dependency (bundled into the IIFE). Initialize `TerraDrawGoogleMapsAdapter` after the `google.maps.Map` instance is created. Enable `TerraDrawPolygonMode`. Listen to `draw.on('change')` to get GeoJSON when the polygon is complete.
+
+**Why Terra Draw over Google's DrawingManager:**
+
+Google's DrawingManager was **deprecated August 2025** and will be **removed in May 2026**. Any new code written with DrawingManager will break at the next forced API version bump. Terra Draw is Google's own recommended replacement — the official Maps JS API documentation links to a Terra Draw example as the drawing reference.
+
+**Why Terra Draw over DIY polygon clicks:**
+
+Polygon drawing with vertex editing, touch support, double-click-to-close, and keyboard escape handling is non-trivial. Terra Draw provides all of this tested and maintained.
+
+**Trade-offs:** Terra Draw adds ~50KB minified to the IIFE bundle. Since the current build uses `inlineDynamicImports: true`, it goes into the main bundle (loads with every widget instantiation). This is acceptable because:
+- Terra Draw is pure logic that initializes lazily when the map step is reached
+- The 50KB is the cost of the drawing feature; it only matters to users who reach the map step
+
+```typescript
+// PolygonDrawing.tsx — abbreviated
+import { TerraDraw, TerraDrawPolygonMode } from 'terra-draw';
+import { TerraDrawGoogleMapsAdapter } from 'terra-draw-google-maps-adapter';
+
+export function initDrawing(map: google.maps.Map) {
+  const draw = new TerraDraw({
+    adapter: new TerraDrawGoogleMapsAdapter({ map, lib: google.maps }),
+    modes: [new TerraDrawPolygonMode()],
+  });
+  draw.start();
+  draw.setMode('polygon');
+
+  draw.on('change', (ids) => {
+    const features = draw.getSnapshot();
+    const polygon = features.find(f => f.geometry.type === 'Polygon' && ids.includes(f.id));
+    if (polygon) {
+      const sqft = polygonToSqft(polygon);
+      mapFootprintSqft.value = sqft;
+    }
+  });
+  return draw;
+}
+```
+
+---
+
+### Pattern 5: Polygon Area Calculation (Pure Function)
+
+**What:** Convert a GeoJSON Polygon feature (WGS84 lat/lng coordinates) to square feet using Turf.js's area function (which implements the Shoelace formula on a spherical coordinate system), then multiply by the pitch adjustment factor.
+
+**Why @turf/area over a hand-rolled Shoelace formula:**
+
+The naive Shoelace formula assumes planar coordinates. Lat/lng coordinates are spherical. For a 2,000 sqft roof, the error from planar Shoelace on lat/lng is small but measurable (~0.1-0.3%). `@turf/area` correctly accounts for the spherical surface. Use the sub-package import, not the full `@turf/turf` bundle (~400KB).
+
+```typescript
+// utils/area.ts
+import area from '@turf/area'; // ~8KB, sub-package import
+
+const SQMETERS_TO_SQFT = 10.7639;
+
+// Pitch multipliers: footprint sqft × multiplier = actual roof surface sqft
+// Based on standard roofing industry slope correction factors
+const PITCH_MULTIPLIERS: Record<string, number> = {
+  flat:   1.00,  // 0/12 to 1/12
+  low:    1.07,  // 2/12 to 4/12  (~15° slope)
+  medium: 1.18,  // 5/12 to 8/12  (~25° slope)
+  steep:  1.36,  // 9/12 and up   (~37° slope)
+};
+
+export function polygonToFootprintSqft(feature: GeoJSON.Feature<GeoJSON.Polygon>): number {
+  const sqMeters = area(feature);
+  return sqMeters * SQMETERS_TO_SQFT;
+}
+
+export function applyPitchMultiplier(footprintSqft: number, pitch: string): number {
+  const multiplier = PITCH_MULTIPLIERS[pitch] ?? 1.0;
+  return Math.round(footprintSqft * multiplier);
+}
+```
+
+---
+
+### Pattern 6: API Key Delivered via Config Endpoint
+
+**What:** Add `googleMapsApiKey` to the existing `/api/config/:companyId` response. The widget already fetches this endpoint on mount. No new network round-trip required.
+
+**Why not bake the key into the widget at build time:**
+
+- The widget IIFE is a cached static asset. Key rotation would require a cache-busting rebuild + redeployment.
+- The key is visible in DevTools network tab regardless — runtime delivery is not meaningfully less secure than build-time baking.
+- Cloudflare Workers environment secrets (`GOOGLE_MAPS_API_KEY` in `wrangler.toml`) are the correct place for secrets.
+
+**Security model (standard for browser-side Maps JS API keys):**
+
+1. Restrict the key on Google Cloud Console to HTTP Referrers: the widget's API host domain (e.g., `*.roofingcalc.com/*`)
+2. API restrictions: enable only Maps JavaScript API + Places API (New)
+3. The referrer restriction is the primary defense — the key is intentionally public-facing
+
+Do NOT proxy Maps API calls through Cloudflare Workers. The Maps JS API is specifically designed for browser-side use with HTTP referrer restrictions. Proxying adds latency, complexity, and additional billing surface.
+
+```typescript
+// packages/api/src/types.ts
+export type Bindings = {
+  DB: D1Database;
+  RESEND_API_KEY: string;
+  RESEND_FROM_EMAIL: string;
+  ESTIMATE_RATE_LIMITER?: RateLimit;
+  LOGOS_BUCKET: R2Bucket;
+  API_BASE_URL?: string;
+  GOOGLE_MAPS_API_KEY: string;  // add this
+};
+
+// packages/api/src/routes/config.ts — add to response object
+googleMapsApiKey: c.env.GOOGLE_MAPS_API_KEY,
+```
+
+---
+
+## Data Flow
+
+### Address → Map → Polygon → sqft → Estimate
+
+```
+[User types address in AddressInput]
+    ↓
+AutocompleteSuggestion.fetchAutocompleteSuggestions() → renders portal dropdown
+    ↓
+User selects suggestion
+    ↓
+place.fetchFields({ fields: ['location', 'formattedAddress'] })
+    ↓
+mapAddress.value = place.formattedAddress
+mapCoords.value = { lat, lng }
+    ↓ (RoofMap reacts to mapCoords signal)
+RoofMap mounts → google.maps.importLibrary('maps') (already bootstrapped)
+    ↓
+new google.maps.Map(containerEl, { mapTypeId: 'satellite', center: mapCoords })
+    ↓
+Terra Draw initialized with polygon mode
+    ↓
+User traces roof outline on satellite image
+    ↓
+draw.on('change') → getSnapshot() → GeoJSON polygon
+    ↓
+polygonToFootprintSqft(feature)
+    ↓
+mapFootprintSqft.value = footprintSqft
+    ↓ (SquareFootageConfirm reads both signals)
+formData.value.sqft = applyPitchMultiplier(footprintSqft, formData.value.pitch)
+    ↓
+User confirms (or edits sqft manually)
+    ↓
+[Next] → ContactInfo → existing estimate API call (unchanged)
+```
+
+### State Changes to form.ts
+
+```typescript
+// Add to existing signals in state/form.ts:
+export const mapAddress = signal('');
+export const mapCoords = signal<{ lat: number; lng: number } | null>(null);
+export const mapFootprintSqft = signal<number | null>(null);  // pre-pitch footprint sqft
+export const mapMeasurementUsed = signal(false);  // for logging/analytics later
+
+// Existing formData.sqft remains the single source of truth consumed by the estimate API.
+// The map calculation writes into formData.sqft. Manual edit overrides it.
+// No changes to ContactInfo, EstimateDisplay, or api/client.ts submitEstimate().
+```
+
+---
+
+## Shadow DOM Gotchas
+
+### Gotcha 1: Google Maps Script Tag Must Go in `document.head`, Not Shadow DOM
+
+Scripts inserted into a Shadow DOM are not executed by browsers. The Maps JS API bootstrap `<script>` must be appended to `document.head`. This is fine — the script is invisible to the user and does not affect Shadow DOM CSS isolation.
+
+### Gotcha 2: Map Container Must Have an Explicit Height
+
+The existing `widget.css` applies `all: initial` to `:host`. This resets inherited height. The map container `<div>` will render as 0px unless a height is explicitly set:
+
+```css
+.rc-map-container {
+  width: 100%;
+  height: 320px;   /* explicit — required for Google Maps */
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+```
+
+320px is a reasonable default for mobile (fits above the fold on a 667px-tall iPhone SE). Adjust if needed.
+
+### Gotcha 3: Autocomplete Dropdown Must Be in `document.body`
+
+A `<ul>` rendered inside the Shadow DOM for autocomplete suggestions will be clipped by the Shadow DOM container's `overflow` and will not layer correctly over the host site. Use the portal pattern: render the dropdown as a direct child of `document.body` with `position: fixed`.
+
+### Gotcha 4: `document.activeElement` Does Not Pierce Shadow DOM
+
+If any Google Maps internal code references `document.activeElement` to determine keyboard focus, it will not see inputs inside our Shadow DOM. In practice this only affects keyboard shortcut handling. Listen to events directly on the input/map element rather than delegating from `document`.
+
+### Gotcha 5: CSS Custom Properties Inherit Through Shadow DOM Boundaries
+
+`--rc-primary` (the company brand color) is set on the outer `rc-widget` div and is accessible inside the Shadow DOM. Use it for the "Confirm measurement" button to maintain brand consistency. Google Maps' own UI controls (zoom, satellite toggle) are styled by Google — they do not inherit our CSS.
+
+### Gotcha 6: Terra Draw Canvas Layers Must Be Within the Map Container
+
+Terra Draw renders SVG/canvas overlays as children of the `google.maps.Map` container element. Since this container is inside the Shadow DOM, Terra Draw's rendering works correctly without any special handling.
+
+---
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Google Maps JS API | Runtime `<script>` in `document.head`; `importLibrary()` for lazy per-library loading | Confirm `loading=async` flag to avoid blocking host page |
+| Google Places (New) | `importLibrary('places')` → `AutocompleteSuggestion.fetchAutocompleteSuggestions()` | Legacy `AutocompleteService` not available to new customers as of March 2025 |
+| Terra Draw | npm dependency, bundled in IIFE | Google's recommended DrawingManager replacement; supports GeoJSON output |
+| @turf/area | npm sub-package, bundled in IIFE | Sub-package only — do not import full @turf/turf |
+
+### Internal Boundaries (New vs. Existing)
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| AddressInput → RoofMap | `mapCoords` signal (RoofMap reacts via signal subscription) | Decoupled — no prop threading through RoofDetails |
+| PolygonDrawing → form.ts | Writes `mapFootprintSqft` signal; SquareFootageConfirm reads and applies pitch | Pitch selection happens before or during draw — user picks pitch, then draws |
+| SquareFootageConfirm → form.ts | Writes `formData.sqft` (same field existing code reads) | ContactInfo and EstimateDisplay see no change at all |
+| config endpoint → widget | `googleMapsApiKey` added to existing JSON response | Piggybacked, no new RTT |
+| ContactInfo, EstimateDisplay | No changes — they read `formData.sqft` regardless of how it was populated | Zero regression risk to existing steps |
+
+---
 
 ## Suggested Build Order
 
-The dependency chain dictates the build sequence:
+Dependencies determine order. Each item must be testable in isolation before proceeding.
 
-### Phase 1: API + Database (foundation)
-Build first because both frontends depend on it.
-- Database schema and migrations
-- Company config CRUD endpoints
-- Estimate calculation logic
-- Seed data for a test company
+| Step | Task | Unblocks |
+|------|------|----------|
+| 1 | Add `GOOGLE_MAPS_API_KEY` to Cloudflare Workers env + config response | Everything Maps-related |
+| 2 | `utils/area.ts` with unit tests (Shoelace/Turf, pitch multipliers) | PolygonDrawing |
+| 3 | `utils/mapsLoader.ts` (bootstrap + importLibrary wrapper) | AddressInput, RoofMap |
+| 4 | Add new signals to `state/form.ts` | All new components |
+| 5 | `AddressInput` component (programmatic autocomplete + portal dropdown) | RoofMap (needs coords) |
+| 6 | `RoofMap` component (satellite map centered on coords) | PolygonDrawing (needs Map instance) |
+| 7 | `PolygonDrawing` component (Terra Draw polygon mode → sqft) | SquareFootageConfirm |
+| 8 | `SquareFootageConfirm` component (pre-filled sqft, material/pitch pickers) | RoofDetails wiring |
+| 9 | `RoofDetails` orchestration (sub-step A/B/C state machine, skip/fallback path) | Full E2E flow |
+| 10 | Fallback path verification (skip map → manual sqft entry) | Regression safety |
 
-### Phase 2: Widget (core product)
-Build second because this is the product. Requires API endpoints to exist.
-- Script tag loader + Shadow DOM setup
-- Multi-step form UI
-- Config fetch and branding application
-- Estimate submission and result display
+Steps 2-4 can be done in parallel. Steps 5-8 are sequential by dependency. Step 10 is a test pass, not implementation.
 
-### Phase 3: Email Delivery
-Wire up after the widget can submit estimates. Requires API and leads table.
-- Resend integration
-- Lead notification email template
-- Failure handling (log, don't block)
+---
 
-### Phase 4: Admin Settings Page
-Build last because it is a supporting tool, not the product.
-- Authentication (login/register)
-- Branding settings form
-- Pricing override form
-- Embed code display with copy button
+## Anti-Patterns
 
-**Why this order:**
-- The API is the dependency for everything else -- nothing works without it
-- The widget is the product and the first thing to demo/validate
-- Email delivery is the value delivery mechanism but can be wired in after the widget works
-- Admin settings are needed for self-service but you can manually configure companies in the database during early testing
+### Anti-Pattern 1: Using `PlaceAutocompleteElement` Inside Shadow DOM
+
+**What people do:** `shadowRoot.appendChild(new google.maps.places.PlaceAutocompleteElement({}))`
+
+**Why it's wrong:** The element has a closed inner Shadow DOM — CSS from `widget.css` cannot reach its internal input. The `.pac-container` dropdown positions incorrectly due to viewport coordinate mismatch with nested Shadow DOMs.
+
+**Do this instead:** Use `AutocompleteSuggestion.fetchAutocompleteSuggestions()` programmatically. Render a standard `<input class="rc-input">` inside the Shadow DOM. Render the suggestions dropdown as a `document.body` portal.
+
+---
+
+### Anti-Pattern 2: Bundling the Google Maps JS API Into the IIFE
+
+**What people do:** Import from an npm wrapper that bundles the Maps API, or attempt to Vite-bundle google maps imports.
+
+**Why it's wrong:** The Maps JS API is ~800KB. The CDN version is globally cached. Bundling it would take the widget from 28KB to ~1MB+ gzipped, breaking the embed-size constraint and defeating CDN caching.
+
+**Do this instead:** Append a `<script>` tag to `document.head` at runtime. Call `google.maps.importLibrary()` for per-library lazy loading. The API key is already available from the config fetch.
+
+---
+
+### Anti-Pattern 3: Using DrawingManager for Polygon Drawing
+
+**What people do:** `new google.maps.drawing.DrawingManager({ drawingMode: 'polygon' })`
+
+**Why it's wrong:** DrawingManager was **deprecated August 2025** and will be **removed from the Maps JS API in May 2026**. Code written today will break in ~2 months from the project start date.
+
+**Do this instead:** Use Terra Draw with `TerraDrawGoogleMapsAdapter`. It is Google's own recommended replacement — the official Maps JS API documentation links to a Terra Draw example as the reference implementation.
+
+---
+
+### Anti-Pattern 4: Inline Area Calculation Without Unit Tests
+
+**What people do:** Write the polygon-to-sqft math inline inside the component, skip tests because "it's just math."
+
+**Why it's wrong:** Off-by-one errors in the pitch multipliers or using planar Shoelace on spherical lat/lng coordinates silently produce wrong estimates. The sqft → estimate calculation is the product's core value proposition. A 10% error in sqft produces a 10% error in the price range.
+
+**Do this instead:** Extract `utils/area.ts` as a pure function. Write unit tests before writing the component. Test: a known house footprint, each pitch value, and the manual-entry fallback path (pitch multiplier = 1.0).
+
+---
+
+### Anti-Pattern 5: Baking the Google Maps API Key Into the Widget Build
+
+**What people do:** `VITE_GOOGLE_MAPS_KEY=abc npm run build` — the key gets hardcoded into the bundle.
+
+**Why it's wrong:** The bundle is a static cached asset. Key rotation requires a rebuild + cache busting. Per-company keys become impossible. The key is in the bundle forever even after rotation.
+
+**Do this instead:** Return the key from `/api/config/:companyId` at runtime. It is already over HTTPS. Apply HTTP Referrer restrictions on the Google Cloud Console to restrict the key to the widget's API host domain. This is the standard, accepted model for browser-side Google Maps API keys.
+
+---
+
+## Scaling Considerations
+
+| Scale | Architecture Notes |
+|-------|--------------------|
+| Single company testing | Bootstrap Maps API unconditionally when address step loads. No concern. |
+| Multiple companies, shared key | Single `GOOGLE_MAPS_API_KEY` env var in Workers. HTTP Referrer restriction covers the API origin domain. All companies share billing. |
+| Multiple companies, separate billing | Store per-company `googleMapsApiKey` in D1 `companies` table. Config endpoint returns company-specific key. Each company owns their own Google Cloud project. Future — not needed for v1.1. |
+| High volume (1M+ map measurements/month) | Google Maps JS API: $7/1,000 loads after free tier. Places Autocomplete: ~$0.0028/request (session-based). Monitor via Google Cloud Console billing alerts. |
+
+**First billing concern:** Each unique map load costs after 28,000 free loads/month. Each autocomplete session (typically 3-8 keystrokes + 1 place select) is treated as one session token billing event. At current pricing, a user completing the map flow costs ~$0.01-0.02 total.
+
+---
 
 ## Sources
 
-- [Building Embeddable React Widgets: Production-Ready Guide](https://makerkit.dev/blog/tutorials/embeddable-widgets-react) -- script tag loader pattern, Shadow DOM, Rollup IIFE builds
-- [Build an Embeddable Widget using Preact and the Shadow DOM](https://dev.to/companycam/build-an-embeddable-widget-using-preact-and-the-shadow-dom-33lm) -- Preact + Shadow DOM architecture, dual shadow root pattern
-- [Preact or Svelte? An Embedded Widget Use Case - Sentry Engineering](https://sentry.engineering/blog/preact-or-svelte-an-embedded-widget-use-case/) -- framework comparison for widgets
-- [Why Move Away From Iframe To Web Components](https://www.luzmo.com/blog/iframe-vs-web-component) -- iframe vs web component tradeoffs
-- [CORS Guide - MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) -- cross-origin resource sharing patterns
-- [Email APIs in 2025: SendGrid vs Resend vs AWS SES](https://medium.com/@nermeennasim/email-apis-in-2025-sendgrid-vs-resend-vs-aws-ses-a-developers-journey-8db7b5545233) -- transactional email comparison
-- [Embeddable Web Applications with Shadow DOM - Viget](https://www.viget.com/articles/embedable-web-applications-with-shadow-dom) -- Shadow DOM encapsulation patterns
+- [Load the Maps JavaScript API — Dynamic Library Import](https://developers.google.com/maps/documentation/javascript/load-maps-js-api) — HIGH confidence, official Google documentation
+- [Place Autocomplete Widget (New) — PlaceAutocompleteElement](https://developers.google.com/maps/documentation/javascript/place-autocomplete-new) — HIGH confidence, official Google documentation
+- [Place Autocomplete Data API — Programmatic AutocompleteSuggestion](https://developers.google.com/maps/documentation/javascript/place-autocomplete-data) — HIGH confidence, official Google documentation
+- [Drawing Layer Deprecation Notice — August 2025, May 2026 removal](https://developers.google.com/maps/documentation/javascript/drawinglayer) — HIGH confidence, official Google documentation
+- [Draw on a map using Terra Draw — Official Google Maps JS API Example](https://developers.google.com/maps/documentation/javascript/examples/map-drawing-terradraw) — HIGH confidence, Google-authored example
+- [Terra Draw GitHub — JamesLMilner/terra-draw](https://github.com/JamesLMilner/terra-draw) — HIGH confidence, library source
+- [Google Maps Platform Security Guidance — API Key Restrictions](https://developers.google.com/maps/api-security-best-practices) — HIGH confidence, official guidance
+- [PlaceAutocompleteElement Shadow DOM Styling Deep Dive](https://juancrg90.me/posts/mastering-google-places-new-api/) — MEDIUM confidence, practitioner post with code examples
+- [Drawing Library Deprecation Discussion — react-google-maps](https://github.com/visgl/react-google-maps/discussions/825) — MEDIUM confidence, corroborates official deprecation notice
+- [Places Autocomplete not available to new customers — March 2025](https://github.com/visgl/react-google-maps/issues/736) — MEDIUM confidence, corroborates official migration notice
+
+---
+
+*Architecture research for: Google Maps roof measurement integration into Preact Shadow DOM widget*
+*Researched: 2026-03-10*
