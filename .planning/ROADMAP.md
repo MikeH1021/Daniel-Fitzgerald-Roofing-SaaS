@@ -58,10 +58,10 @@ Plans:
   1. Roofing company receives an email with the homeowner's name, email, phone, roof details, and the estimate shown -- within 1 minute of submission
   2. Lead notification emails land in the inbox (not spam) on Gmail, Outlook, and Yahoo
   3. Bot submissions are blocked by honeypot fields and rate limiting so companies receive only real leads
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md -- Email notification via Resend, honeypot bot protection, rate limiting
 
 ### Phase 4: Admin Settings
 **Goal**: Roofing companies can self-service their branding, pricing overrides, and embed code without manual database configuration
@@ -87,5 +87,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. API + Estimate Engine | 2/2 | Complete | 2026-03-09 |
 | 2. Embeddable Widget | 1/2 | In Progress|  |
-| 3. Lead Delivery | 0/0 | Not started | - |
+| 3. Lead Delivery | 0/1 | Not started | - |
 | 4. Admin Settings | 0/0 | Not started | - |
