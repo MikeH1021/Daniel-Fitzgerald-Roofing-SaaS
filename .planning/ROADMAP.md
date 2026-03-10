@@ -72,11 +72,11 @@ Plans:
   2. Company can set a primary brand color and see it reflected in the widget
   3. Company can override default material costs and pitch multipliers, and the widget immediately uses the new values
   4. Company can view and copy a ready-to-paste embed code snippet for their website
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Auth system, admin API routes for settings, pricing overrides, and embed code
+- [ ] 04-02-PLAN.md -- Logo upload with R2 storage and Preact admin UI
 
 ## Progress
 
@@ -88,4 +88,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. API + Estimate Engine | 2/2 | Complete | 2026-03-09 |
 | 2. Embeddable Widget | 1/2 | In Progress|  |
 | 3. Lead Delivery | 0/1 | Not started | - |
-| 4. Admin Settings | 0/0 | Not started | - |
+| 4. Admin Settings | 0/2 | Not started | - |
