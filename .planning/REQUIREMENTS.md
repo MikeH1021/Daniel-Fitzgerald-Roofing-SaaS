@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **LEAD-01**: Homeowner can enter first name, last name, email, and phone number
 - [x] **LEAD-02**: Homeowner must check TCPA-compliant consent checkbox (unchecked by default, names the company) before submitting
-- [ ] **LEAD-03**: Roofing company receives email with all lead details and estimate shown within 1 minute of submission
+- [x] **LEAD-03**: Roofing company receives email with all lead details and estimate shown within 1 minute of submission
 
 ### Widget & Embed
 
@@ -93,7 +93,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EST-06 | Phase 1 | Complete |
 | LEAD-01 | Phase 2 | Complete |
 | LEAD-02 | Phase 2 | Complete |
-| LEAD-03 | Phase 3 | Pending |
+| LEAD-03 | Phase 3 | Complete |
 | WIDG-01 | Phase 2 | Complete |
 | WIDG-02 | Phase 2 | Complete |
 | WIDG-03 | Phase 2 | Complete |
