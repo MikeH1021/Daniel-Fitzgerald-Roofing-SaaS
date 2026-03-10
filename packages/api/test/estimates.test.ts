@@ -188,6 +188,62 @@ describe('POST /api/estimates - lead capture', () => {
   });
 });
 
+describe('POST /api/estimates - honeypot', () => {
+  beforeAll(async () => {
+    await seedTestData(env.DB);
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
+  });
+
+  it('silently rejects submission with filled honeypot field', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+        firstName: 'Bot', lastName: 'User', email: 'bot@spam.com', phone: '5551234567', consent: true,
+        website: 'http://spam.com',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { estimateLow: number; estimateHigh: number };
+    expect(body.estimateLow).toBe(0);
+    expect(body.estimateHigh).toBe(0);
+
+    // Verify no lead was stored
+    const leads = await env.DB.prepare('SELECT * FROM leads WHERE email = ?').bind('bot@spam.com').all();
+    expect(leads.results.length).toBe(0);
+  });
+
+  it('processes normally with empty honeypot field', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+        website: '',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { estimateLow: number; estimateHigh: number };
+    expect(body.estimateLow).toBeGreaterThan(0);
+    expect(body.estimateHigh).toBeGreaterThan(0);
+  });
+
+  it('processes normally without honeypot field', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { estimateLow: number; estimateHigh: number };
+    expect(body.estimateLow).toBeGreaterThan(0);
+    expect(body.estimateHigh).toBeGreaterThan(0);
+  });
+});
+
 describe('GET /api/config/:companyId', () => {
   beforeAll(async () => {
     await seedTestData(env.DB);
