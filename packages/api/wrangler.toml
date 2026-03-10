@@ -9,6 +9,10 @@ database_name = "roofing_calculator"
 database_id = "placeholder-replace-before-deploy"
 migrations_dir = "drizzle/migrations"
 
+[[r2_buckets]]
+binding = "LOGOS_BUCKET"
+bucket_name = "roofing-logos"
+
 [[unsafe.bindings]]
 name = "ESTIMATE_RATE_LIMITER"
 type = "ratelimit"

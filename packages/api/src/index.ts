@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import type { Bindings } from './types';
 import { estimates } from './routes/estimates';
 import { config } from './routes/config';
+import { admin } from './routes/admin';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -17,5 +18,6 @@ app.get('/', (c) => {
 // Mount routes
 app.route('/api/estimates', estimates);
 app.route('/api/config', config);
+app.route('/api/admin', admin);
 
 export default app;
