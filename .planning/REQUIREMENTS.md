@@ -62,23 +62,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MAP-01 | — | Pending |
-| MAP-02 | — | Pending |
-| MAP-03 | — | Pending |
-| MEAS-01 | — | Pending |
-| MEAS-02 | — | Pending |
-| MEAS-03 | — | Pending |
-| MEAS-04 | — | Pending |
-| MEAS-05 | — | Pending |
-| UX-01 | — | Pending |
-| UX-02 | — | Pending |
-| LEAD-01 | — | Pending |
+| MAP-01 | Phase 5 | Pending |
+| MAP-02 | Phase 5 | Pending |
+| MAP-03 | Phase 5 | Pending |
+| MEAS-01 | Phase 6 | Pending |
+| MEAS-02 | Phase 6 | Pending |
+| MEAS-03 | Phase 6 | Pending |
+| MEAS-04 | Phase 6 | Pending |
+| MEAS-05 | Phase 6 | Pending |
+| UX-01 | Phase 6 | Pending |
+| UX-02 | Phase 6 | Pending |
+| LEAD-01 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-10*
-*Last updated: 2026-03-10 after initial definition*
+*Last updated: 2026-03-10 — traceability updated after roadmap creation*
