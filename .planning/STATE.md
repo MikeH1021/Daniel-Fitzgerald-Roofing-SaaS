@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-10T05:00:54.658Z"
-last_activity: 2026-03-10 -- Completed 03-01 (Lead notification email + honeypot + rate limiting)
+status: in-progress
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-10T05:28:57.941Z"
+last_activity: 2026-03-10 -- Completed 04-01 (Admin auth + settings/pricing/embed-code API)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 7
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Homeowners get an instant, credible roof estimate -- and the roofing company captures a qualified lead with contact info and project details.
-**Current focus:** Phase 3: Lead Delivery
+**Current focus:** Phase 4: Admin Settings
 
 ## Current Position
 
-Phase: 3 of 4 (Lead Delivery) -- COMPLETE
-Plan: 1 of 1 in current phase
-Status: Phase Complete
-Last activity: 2026-03-10 -- Completed 03-01 (Lead notification email + honeypot + rate limiting)
+Phase: 4 of 4 (Admin Settings)
+Plan: 1 of 2 in current phase -- COMPLETE
+Status: In Progress
+Last activity: 2026-03-10 -- Completed 04-01 (Admin auth + settings/pricing/embed-code API)
 
-Progress: [██████████] 100% (5/5 plans)
+Progress: [█████████░] 86% (6/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 3 min
-- Total execution time: 0.3 hours
+- Total plans completed: 6
+- Average duration: 3.5 min
+- Total execution time: 0.35 hours
 
 **By Phase:**
 
@@ -46,9 +46,10 @@ Progress: [██████████] 100% (5/5 plans)
 | 01-api-estimate-engine | 2 | 6 min | 3 min |
 | 02-embeddable-widget | 2 | 7 min | 3.5 min |
 | 03-lead-delivery | 1 | 3 min | 3 min |
+| 04-admin-settings | 1 | 6 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (2m), 02-01 (4m), 02-02 (3m), 03-01 (3m)
+- Last 5 plans: 02-01 (4m), 02-02 (3m), 03-01 (3m), 04-01 (6m)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -73,6 +74,10 @@ Recent decisions affecting current work:
 - Honeypot validated in route handler (not zod schema) to return fake 200 instead of 400 (03-01)
 - Rate limiter binding optional with graceful degradation for test environments (03-01)
 - Email sending uses waitUntil with .catch() to never block or fail estimate response (03-01)
+- PBKDF2 with 100k iterations via Web Crypto API -- bcrypt incompatible with Workers (04-01)
+- Session tokens via nanoid(32) in D1 admin_sessions table with 7-day TTL (04-01)
+- Added R2 LOGOS_BUCKET and API_BASE_URL bindings proactively for Plan 02 (04-01)
+- D1 vitest-pool-workers resets state between it() blocks -- use beforeAll for dependent state (04-01)
 
 ### Pending Todos
 
@@ -87,5 +92,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-10
-Stopped at: Completed 03-01-PLAN.md
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
