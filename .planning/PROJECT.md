@@ -33,18 +33,24 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 
 ### Active
 
-(None — define in next milestone)
+<!-- v1.1 Google Maps Roof Measurement -->
+
+- [ ] Address autocomplete with Google Places API
+- [ ] Satellite map preview of the homeowner's roof
+- [ ] Polygon drawing tool to trace roof outline on map
+- [ ] Auto-calculate footprint area from polygon
+- [ ] Adjust calculated sqft for selected roof pitch
+- [ ] Auto-fill sqft field from map measurement
+- [ ] Manual sqft entry still works as fallback
 
 ### Out of Scope
 
-- Property data API / auto-lookup of roof sqft — manual entry for v1
 - Lead management dashboard — email notifications only for v1
 - CRM integrations (HubSpot, Salesforce, etc.) — v2
 - WordPress plugin — script embed only for v1
 - Full theme control (fonts, spacing, etc.) — colors + logo only for v1
 - Payment processing / billing for SaaS subscriptions — handle offline for v1
 - SMS/text notifications to roofing company — email only for v1
-- Satellite/aerial roof measurement — multi-million dollar investment
 - Contractor marketplace / matching — different business model
 - Permit cost estimation — varies by municipality
 - Exact / guaranteed pricing — liability risk, always show ranges
@@ -87,4 +93,14 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 | Session cookies over JWT | Simple, secure, httpOnly | ✓ Good |
 
 ---
-*Last updated: 2026-03-10 after v1.0 milestone*
+## Current Milestone: v1.1 Google Maps Roof Measurement
+
+**Goal:** Let homeowners who don't know their roof sqft draw their roof on a satellite map and get an auto-calculated, pitch-adjusted square footage for their estimate.
+
+**Target features:**
+- Address autocomplete → satellite map view
+- Polygon roof tracing tool
+- Pitch-adjusted sqft auto-calculation
+- Seamless fallback to manual sqft entry
+
+*Last updated: 2026-03-10 after v1.1 milestone started*
