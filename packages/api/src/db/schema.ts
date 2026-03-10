@@ -4,10 +4,20 @@ export const companies = sqliteTable('companies', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull(),
+  passwordHash: text('password_hash'),
   logoUrl: text('logo_url'),
   primaryColor: text('primary_color').default('#2563eb'),
   createdAt: text('created_at').default("(datetime('now'))"),
   updatedAt: text('updated_at').default("(datetime('now'))"),
+});
+
+export const adminSessions = sqliteTable('admin_sessions', {
+  id: text('id').primaryKey(),
+  companyId: text('company_id')
+    .notNull()
+    .references(() => companies.id),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').default("(datetime('now'))"),
 });
 
 export const pricingOverrides = sqliteTable('pricing_overrides', {
