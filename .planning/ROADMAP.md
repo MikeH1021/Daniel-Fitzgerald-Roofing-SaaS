@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: API + Estimate Engine** - Backend API with pricing formula, database schema, and company config
 - [ ] **Phase 2: Embeddable Widget** - Preact widget in Shadow DOM with multi-step form, branding, and mobile support
 - [ ] **Phase 3: Lead Delivery** - Email notifications to roofing companies with bot protection and consent recording
-- [ ] **Phase 4: Admin Settings** - Self-service portal for branding, pricing overrides, and embed code
+- [x] **Phase 4: Admin Settings** - Self-service portal for branding, pricing overrides, and embed code (completed 2026-03-10)
 
 ## Phase Details
 
@@ -72,7 +72,7 @@ Plans:
   2. Company can set a primary brand color and see it reflected in the widget
   3. Company can override default material costs and pitch multipliers, and the widget immediately uses the new values
   4. Company can view and copy a ready-to-paste embed code snippet for their website
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 04-01-PLAN.md -- Auth system, admin API routes for settings, pricing overrides, and embed code
@@ -88,4 +88,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. API + Estimate Engine | 2/2 | Complete | 2026-03-09 |
 | 2. Embeddable Widget | 1/2 | In Progress|  |
 | 3. Lead Delivery | 0/1 | Not started | - |
-| 4. Admin Settings | 0/2 | Not started | - |
+| 4. Admin Settings | 2/2 | Complete   | 2026-03-10 |

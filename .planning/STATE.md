@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-10T05:28:57.941Z"
-last_activity: 2026-03-10 -- Completed 04-01 (Admin auth + settings/pricing/embed-code API)
+status: complete
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-10T05:38:24.563Z"
+last_activity: 2026-03-10 -- Completed 04-02 (Logo upload + admin UI)
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 7
-  completed_plans: 6
-  percent: 86
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Homeowners get an instant, credible roof estimate -- and the roofing company captures a qualified lead with contact info and project details.
-**Current focus:** Phase 4: Admin Settings
+**Current focus:** All phases complete -- v1.0 milestone done
 
 ## Current Position
 
-Phase: 4 of 4 (Admin Settings)
-Plan: 1 of 2 in current phase -- COMPLETE
-Status: In Progress
-Last activity: 2026-03-10 -- Completed 04-01 (Admin auth + settings/pricing/embed-code API)
+Phase: 4 of 4 (Admin Settings) -- COMPLETE
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Complete
+Last activity: 2026-03-10 -- Completed 04-02 (Logo upload + admin UI)
 
-Progress: [█████████░] 86% (6/7 plans)
+Progress: [██████████] 100% (7/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 3.5 min
-- Total execution time: 0.35 hours
+- Total plans completed: 7
+- Average duration: 3.7 min
+- Total execution time: 0.43 hours
 
 **By Phase:**
 
@@ -46,10 +46,10 @@ Progress: [█████████░] 86% (6/7 plans)
 | 01-api-estimate-engine | 2 | 6 min | 3 min |
 | 02-embeddable-widget | 2 | 7 min | 3.5 min |
 | 03-lead-delivery | 1 | 3 min | 3 min |
-| 04-admin-settings | 1 | 6 min | 6 min |
+| 04-admin-settings | 2 | 14 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (4m), 02-02 (3m), 03-01 (3m), 04-01 (6m)
+- Last 5 plans: 02-02 (3m), 03-01 (3m), 04-01 (6m), 04-02 (8m)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -78,6 +78,8 @@ Recent decisions affecting current work:
 - Session tokens via nanoid(32) in D1 admin_sessions table with 7-day TTL (04-01)
 - Added R2 LOGOS_BUCKET and API_BASE_URL bindings proactively for Plan 02 (04-01)
 - D1 vitest-pool-workers resets state between it() blocks -- use beforeAll for dependent state (04-01)
+- [Phase 04]: Preact SPA reuses Vite build approach from widget package for admin UI
+- [Phase 04]: Logo upload validates MIME types and 1MB size limit server-side before R2 storage
 
 ### Pending Todos
 
@@ -91,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-03-10T05:38:22.292Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None

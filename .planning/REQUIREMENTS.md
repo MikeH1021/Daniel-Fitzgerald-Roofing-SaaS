@@ -32,7 +32,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Admin Settings
 
-- [ ] **ADMN-01**: Company can upload logo image
+- [x] **ADMN-01**: Company can upload logo image
 - [x] **ADMN-02**: Company can set primary brand color
 - [x] **ADMN-03**: Company can override default material costs and multipliers
 - [x] **ADMN-04**: Company can view and copy their embed code snippet
@@ -99,7 +99,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIDG-03 | Phase 2 | Complete |
 | WIDG-04 | Phase 2 | Complete |
 | WIDG-05 | Phase 2 | Complete |
-| ADMN-01 | Phase 4 | Pending |
+| ADMN-01 | Phase 4 | Complete |
 | ADMN-02 | Phase 4 | Complete |
 | ADMN-03 | Phase 4 | Complete |
 | ADMN-04 | Phase 4 | Complete |
