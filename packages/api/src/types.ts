@@ -1,5 +1,8 @@
 export type Bindings = {
   DB: D1Database;
+  RESEND_API_KEY: string;
+  RESEND_FROM_EMAIL: string;
+  ESTIMATE_RATE_LIMITER?: RateLimit;
 };
 
 export interface PricingConfig {

@@ -58,6 +58,16 @@ export function ContactInfo({ companyName, companyId }: { companyName: string; c
     <div>
       <div class="rc-step-title">Your Contact Information</div>
 
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          value=""
+        />
+      </div>
+
       <div class="rc-field">
         <input
           type="text"

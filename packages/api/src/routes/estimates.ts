@@ -11,6 +11,7 @@ import {
 } from '../engine/defaults';
 import { createDb } from '../db';
 import { pricingOverrides, companies, leads } from '../db/schema';
+import { sendLeadNotification } from '../email/send-lead-notification';
 import type { Bindings, PricingConfig } from '../types';
 
 const estimates = new Hono<{ Bindings: Bindings }>();
@@ -34,6 +35,20 @@ estimates.post(
   async (c) => {
     const validated = c.req.valid('json');
     const { sqft, pitch, material, companyId } = validated;
+
+    // Rate limiting (graceful degradation if binding unavailable)
+    if (c.env.ESTIMATE_RATE_LIMITER) {
+      const clientIP = c.req.header('cf-connecting-ip') || 'unknown';
+      const { success: rateLimitOk } = await c.env.ESTIMATE_RATE_LIMITER.limit({ key: clientIP });
+      if (!rateLimitOk) {
+        return c.json({ error: 'Too many requests. Please try again later.' }, 429);
+      }
+    }
+
+    // Honeypot check -- bots fill the hidden "website" field
+    if (validated.website) {
+      return c.json({ estimateLow: 0, estimateHigh: 0, disclaimer: '', configSource: 'default' });
+    }
 
     // Build pricing config starting from defaults
     const config: PricingConfig = {
@@ -77,12 +92,14 @@ estimates.post(
     if (validated.firstName && validated.lastName && validated.email && validated.phone && validated.consent) {
       // Look up company name for consent text
       let companyName = 'the roofing company';
+      let companyEmail = '';
       const companyRows = await db
-        .select({ name: companies.name })
+        .select({ name: companies.name, email: companies.email })
         .from(companies)
         .where(eq(companies.id, companyId));
       if (companyRows.length > 0) {
         companyName = companyRows[0].name;
+        companyEmail = companyRows[0].email;
       }
 
       const consentText = `I consent to receive communications from ${companyName} regarding my roofing estimate. I understand that consent is not a condition of purchase.`;
@@ -102,6 +119,31 @@ estimates.post(
         estimateLow: result.estimateLow,
         estimateHigh: result.estimateHigh,
       });
+
+      // Send email notification (non-blocking)
+      if (companyEmail && c.env.RESEND_API_KEY) {
+        c.executionCtx.waitUntil(
+          sendLeadNotification(c.env.RESEND_API_KEY, {
+            from: c.env.RESEND_FROM_EMAIL || 'leads@notifications.example.com',
+            to: companyEmail,
+            companyName,
+            lead: {
+              companyName,
+              firstName: validated.firstName!,
+              lastName: validated.lastName!,
+              email: validated.email!,
+              phone: validated.phone!,
+              sqft,
+              pitch,
+              material,
+              estimateLow: result.estimateLow,
+              estimateHigh: result.estimateHigh,
+            },
+          }).catch((err) => {
+            console.error('Lead notification email failed:', err);
+          })
+        );
+      }
     }
 
     return c.json({

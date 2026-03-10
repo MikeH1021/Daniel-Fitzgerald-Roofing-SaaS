@@ -11,6 +11,7 @@ export const estimateRequestSchema = z
     email: z.string().email().optional(),
     phone: z.string().min(7).max(20).optional(),
     consent: z.boolean().optional(),
+    website: z.string().optional().default(''),
   })
   .superRefine((data, ctx) => {
     const contactFields = [data.firstName, data.lastName, data.email, data.phone];
