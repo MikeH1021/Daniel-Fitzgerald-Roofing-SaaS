@@ -52,10 +52,11 @@ Plans:
   3. Homeowner can undo the last placed point or clear the polygon entirely and redraw
   4. Homeowner can switch between "Enter manually" and "Measure on map" modes at any time — manual entry remains fully functional as the default
   5. When the Maps API is blocked by the host site's CSP, the widget falls back gracefully to manual sqft entry with no broken UI
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — Area utility (area.ts), Terra Draw CDN loader extension, draw.ts lifecycle module, new map state signals (Wave 0 TDD stubs first)
+- [ ] 06-02-PLAN.md — DrawingControls UI, MapStep drawing flow integration, App.tsx mapError gate, CSS, app.test.ts UX coverage
 
 ### Phase 7: Lead Email Integration
 **Goal**: The roofing company's lead notification email includes the property address whenever a homeowner used map mode, giving the company the address without having to ask for it separately
