@@ -48,11 +48,11 @@ describe('computeFootprintSqft', () => {
     // flat:   Math.round(1076.39104167 × 1.00) = 1076
     // low:    Math.round(1076.39104167 × 1.05) = 1130
     // medium: Math.round(1076.39104167 × 1.12) = 1206
-    // steep:  Math.round(1076.39104167 × 1.25) = 1346
+    // steep:  Math.round(1076.39104167 × 1.25) = 1345 (1345.489 rounds down)
     expect(computeFootprintSqft(coords, 'flat')).toBe(1076);
     expect(computeFootprintSqft(coords, 'low')).toBe(1130);
     expect(computeFootprintSqft(coords, 'medium')).toBe(1206);
-    expect(computeFootprintSqft(coords, 'steep')).toBe(1346);
+    expect(computeFootprintSqft(coords, 'steep')).toBe(1345);
   });
 
   it('returns 0 when coords.length < 3', async () => {
