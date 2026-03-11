@@ -15,11 +15,11 @@ Requirements for Google Maps Roof Measurement milestone. Each maps to roadmap ph
 
 ### Measurement
 
-- [ ] **MEAS-01**: User can draw polygon vertices around roof outline on satellite map
-- [ ] **MEAS-02**: Widget calculates footprint area from polygon and adjusts for selected pitch
-- [ ] **MEAS-03**: Calculated sqft auto-fills the existing sqft field
-- [ ] **MEAS-04**: User can tap "Done Drawing" to close polygon (mobile-friendly)
-- [ ] **MEAS-05**: User can undo last point or clear and restart the polygon
+- [x] **MEAS-01**: User can draw polygon vertices around roof outline on satellite map
+- [x] **MEAS-02**: Widget calculates footprint area from polygon and adjusts for selected pitch
+- [x] **MEAS-03**: Calculated sqft auto-fills the existing sqft field
+- [x] **MEAS-04**: User can tap "Done Drawing" to close polygon (mobile-friendly)
+- [x] **MEAS-05**: User can undo last point or clear and restart the polygon
 
 ### UX
 
@@ -65,11 +65,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-01 | Phase 5 | Complete |
 | MAP-02 | Phase 5 | Complete |
 | MAP-03 | Phase 5 | Complete |
-| MEAS-01 | Phase 6 | Pending |
-| MEAS-02 | Phase 6 | Pending |
-| MEAS-03 | Phase 6 | Pending |
-| MEAS-04 | Phase 6 | Pending |
-| MEAS-05 | Phase 6 | Pending |
+| MEAS-01 | Phase 6 | Complete |
+| MEAS-02 | Phase 6 | Complete |
+| MEAS-03 | Phase 6 | Complete |
+| MEAS-04 | Phase 6 | Complete |
+| MEAS-05 | Phase 6 | Complete |
 | UX-01 | Phase 6 | Pending |
 | UX-02 | Phase 6 | Pending |
 | LEAD-01 | Phase 7 | Pending |

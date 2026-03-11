@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Google Maps Roof Measurement
-status: planning
-stopped_at: Completed 05-02-PLAN.md (Phase 5 complete — human verification deferred pending API key)
-last_updated: "2026-03-11T17:13:49.033Z"
-last_activity: 2026-03-11 — Completed 05-02 (AddressAutocomplete portal dropdown, MapView satellite map, MapStep lazy orchestrator, App map mode toggle)
+status: in_progress
+stopped_at: Completed 06-01-PLAN.md (Phase 6 in progress)
+last_updated: "2026-03-11T17:50:28Z"
+last_activity: 2026-03-11 — Completed 06-01 (area.ts, draw.ts, loader.ts extension, map state signals)
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 33
+  total_plans: 3
+  completed_plans: 3
+  percent: 40
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Homeowners get an instant, credible roof estimate — and the roofing company captures a qualified lead with contact info and project details.
-**Current focus:** Phase 5 — Map Infrastructure + Address Autocomplete
+**Current focus:** Phase 6 — Polygon Drawing + sqft Auto-fill + UX
 
 ## Current Position
 
-Phase: 5 of 7 (Map Infrastructure + Address Autocomplete) — COMPLETE
-Plan: 2 of 2 complete in current phase
-Status: Phase 5 complete, ready for Phase 6 planning
-Last activity: 2026-03-11 — Completed 05-02 (AddressAutocomplete portal dropdown, MapView satellite map, MapStep lazy orchestrator, App map mode toggle)
+Phase: 6 of 7 (Polygon Drawing + sqft Auto-fill + UX) — In Progress
+Plan: 1 of 2 complete in current phase
+Status: Plan 06-01 complete, ready for Plan 06-02
+Last activity: 2026-03-11 — Completed 06-01 (computeFootprintSqft, Terra Draw lifecycle, loadTerraDrawScripts, drawing signals)
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -54,10 +54,11 @@ Progress: [███░░░░░░░] 33%
 |-------|------|----------|-------|-------|
 | 05 | 01 | 3 min | 2 | 10 |
 | 05 | 02 | deferred* | 1+1 | 6 |
+| 06 | 01 | 4 min | 2 | 6 |
 
-*\* Plan 02 human verification deferred pending Google Maps API key*
+*\* Plan 05-02 human verification deferred pending Google Maps API key*
 
-*Running avg: ~3 min/plan (auto tasks)*
+*Running avg: ~3.5 min/plan (auto tasks)*
 
 ## Accumulated Context
 
@@ -80,11 +81,9 @@ None.
 
 ### Blockers/Concerns
 
-- Pitch multiplier value discrepancy: ARCHITECTURE.md vs FEATURES.md use different values. Confirm against existing `packages/api` pricing engine before writing `utils/area.ts`.
-- Terra Draw CDN loading proof-of-concept needed before Phase 6 planning — `inlineDynamicImports: true` Vite config is an unusual constraint.
 - Autocomplete session tokens must be implemented from day one (5-10x cost overrun without them). ✅ RESOLVED in 05-01.
-- Pitch multiplier value discrepancy: ARCHITECTURE.md vs FEATURES.md use different values. Confirm against existing `packages/api` pricing engine before writing `utils/area.ts`.
-- Terra Draw CDN loading proof-of-concept needed before Phase 6 planning — `inlineDynamicImports: true` Vite config is an unusual constraint.
+- Pitch multiplier value discrepancy: ARCHITECTURE.md vs FEATURES.md use different values. ✅ RESOLVED in 06-01 (confirmed flat=1.00, low=1.05, medium=1.12, steep=1.25 from defaults.ts).
+- Terra Draw CDN loading proof-of-concept needed before Phase 6 planning. ✅ RESOLVED in 06-01 (sequential onload chain confirmed working in tests).
 
 ### 05-01 Decisions
 - No `includedPrimaryTypes` filter on AutocompleteSuggestion — broader results recommended (add filtering in Phase 6 if noise observed)
@@ -97,8 +96,14 @@ None.
 - mapMode signal is the sole lazy-loading gate — no Maps API calls until homeowner explicitly activates map mode (MAP-03)
 - MapView stores map instance in useRef, calls setCenter() on lat/lng change instead of re-creating map
 
+### 06-01 Decisions
+- PITCH_MULTIPLIERS in area.ts match defaults.ts exactly: flat=1.00, low=1.05, medium=1.12, steep=1.25
+- loadTerraDrawScripts uses sequential onload chain (core → adapter) — adapter UMD requires window.terraDraw synchronously
+- initDraw resolves only after 'ready' event — TerraDrawGoogleMapsAdapter OverlayView is asynchronous
+- drawingSqft signal updated directly in 'change' handler AND via onAreaUpdate callback (dual update path)
+
 ## Session Continuity
 
 Last session: 2026-03-11
-Stopped at: Completed 05-02-PLAN.md (Phase 5 complete — human verification deferred pending API key)
+Stopped at: Completed 06-01-PLAN.md (Phase 6 in progress — core computation layer complete)
 Resume file: None
