@@ -5,9 +5,10 @@ import { importMapsLibrary } from '../maps/loader';
 interface Props {
   lat: number;
   lng: number;
+  onMapReady?: (map: any) => void;
 }
 
-export function MapView({ lat, lng }: Props) {
+export function MapView({ lat, lng, onMapReady }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
@@ -30,6 +31,11 @@ export function MapView({ lat, lng }: Props) {
         disableDefaultUI: true,
         gestureHandling: 'greedy', // single-finger pan on mobile
       });
+
+      // Notify parent that map instance is ready (required for DrawingControls / Terra Draw)
+      if (onMapReady) {
+        onMapReady(mapInstanceRef.current);
+      }
     }
 
     initMap();
@@ -38,6 +44,7 @@ export function MapView({ lat, lng }: Props) {
   return (
     <div
       ref={mapRef}
+      id="rc-map"
       class="rc-map-container"
       // Explicit height is critical — Maps API renders at 0px without it (RESEARCH.md Pitfall 3)
       style={{ width: '100%', height: '300px' }}
