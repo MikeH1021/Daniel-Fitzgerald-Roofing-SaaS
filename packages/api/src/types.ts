@@ -5,6 +5,7 @@ export type Bindings = {
   ESTIMATE_RATE_LIMITER?: RateLimit;
   LOGOS_BUCKET: R2Bucket;
   API_BASE_URL?: string;
+  GOOGLE_MAPS_API_KEY?: string;
 };
 
 export interface PricingConfig {
