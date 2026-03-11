@@ -30,6 +30,13 @@ export async function fetchCompanyConfig(companyId: string): Promise<{
   return res.json();
 }
 
+export async function fetchMapsKey(): Promise<string> {
+  const res = await fetch(`${apiBase}/api/maps/key`);
+  if (!res.ok) throw new Error('Failed to load Maps API key');
+  const data = await res.json();
+  return data.key;
+}
+
 export async function submitEstimate(data: {
   sqft: number;
   pitch: string;

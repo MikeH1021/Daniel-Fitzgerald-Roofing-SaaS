@@ -134,3 +134,50 @@
   font-weight: 600;
   margin-bottom: 16px;
 }
+
+.rc-address-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 15px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  color: #1f2937;
+  background: #fff;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.rc-address-input:focus {
+  border-color: var(--rc-primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.rc-map-container {
+  width: 100%;
+  border-radius: 6px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.rc-map-toggle {
+  cursor: pointer;
+  color: var(--rc-primary, #2563eb);
+  text-decoration: underline;
+  font-size: 14px;
+  margin-top: 8px;
+  display: inline-block;
+}
+
+.rc-map-loading {
+  text-align: center;
+  padding: 20px;
+  color: #6b7280;
+}
+
+.rc-selected-address {
+  font-size: 13px;
+  color: #374151;
+  margin-top: 4px;
+  padding: 4px 0;
+}
