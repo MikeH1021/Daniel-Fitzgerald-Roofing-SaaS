@@ -23,8 +23,8 @@ Requirements for Google Maps Roof Measurement milestone. Each maps to roadmap ph
 
 ### UX
 
-- [ ] **UX-01**: User can toggle between "Enter manually" (default) and "Measure on map" modes
-- [ ] **UX-02**: Widget gracefully degrades to manual entry if Maps API is blocked by host site CSP
+- [x] **UX-01**: User can toggle between "Enter manually" (default) and "Measure on map" modes
+- [x] **UX-02**: Widget gracefully degrades to manual entry if Maps API is blocked by host site CSP
 
 ### Lead Data
 
@@ -70,8 +70,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MEAS-03 | Phase 6 | Complete |
 | MEAS-04 | Phase 6 | Complete |
 | MEAS-05 | Phase 6 | Complete |
-| UX-01 | Phase 6 | Pending |
-| UX-02 | Phase 6 | Pending |
+| UX-01 | Phase 6 | Complete |
+| UX-02 | Phase 6 | Complete |
 | LEAD-01 | Phase 7 | Pending |
 
 **Coverage:**

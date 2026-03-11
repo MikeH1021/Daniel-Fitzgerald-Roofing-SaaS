@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Google Maps Roof Measurement
-status: in_progress
-stopped_at: Completed 06-01-PLAN.md (Phase 6 in progress)
-last_updated: "2026-03-11T17:50:28Z"
-last_activity: 2026-03-11 — Completed 06-01 (area.ts, draw.ts, loader.ts extension, map state signals)
+status: completed
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-11T18:24:41.811Z"
+last_activity: 2026-03-11 — Completed 06-01 (computeFootprintSqft, Terra Draw lifecycle, loadTerraDrawScripts, drawing signals)
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
   percent: 40
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 6 of 7 (Polygon Drawing + sqft Auto-fill + UX) — In Progress
-Plan: 1 of 2 complete in current phase
-Status: Plan 06-01 complete, ready for Plan 06-02
-Last activity: 2026-03-11 — Completed 06-01 (computeFootprintSqft, Terra Draw lifecycle, loadTerraDrawScripts, drawing signals)
+Phase: 6 of 7 (Polygon Drawing + sqft Auto-fill + UX) — Complete
+Plan: 2 of 2 complete in current phase
+Status: Phase 6 complete — all requirements MEAS-01..05, UX-01, UX-02 addressed
+Last activity: 2026-03-11 — Completed 06-02 (DrawingControls, MapStep drawing flow, mapError CSP gate)
 
-Progress: [████░░░░░░] 40%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [████░░░░░░] 40%
 *\* Plan 05-02 human verification deferred pending Google Maps API key*
 
 *Running avg: ~3.5 min/plan (auto tasks)*
+| Phase 06-polygon-drawing-sqft-auto-fill-ux P02 | 28 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -102,8 +103,14 @@ None.
 - initDraw resolves only after 'ready' event — TerraDrawGoogleMapsAdapter OverlayView is asynchronous
 - drawingSqft signal updated directly in 'change' handler AND via onAreaUpdate callback (dual update path)
 
+### 06-02 Decisions
+- DrawingControls reads signals directly (not via props) — Preact signals auto-subscribe components on .value access
+- activateDrawing() is async inside MapStep — keeps UI state transitions co-located with signal writes
+- Enter sqft manually resets all drawing state (isDrawingActive, hasFinishedPolygon, drawingSqft, destroyDraw) — prevents stale draw instance
+- mapError guard wraps only the Measure on map link — does not affect the map step title or Enter sqft manually link
+
 ## Session Continuity
 
-Last session: 2026-03-11
-Stopped at: Completed 06-01-PLAN.md (Phase 6 in progress — core computation layer complete)
+Last session: 2026-03-11T18:24:41.808Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
