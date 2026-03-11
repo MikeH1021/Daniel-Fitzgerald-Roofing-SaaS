@@ -2,7 +2,8 @@ import { h } from 'preact';
 import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import { currentStep } from './state/form';
-import { mapMode, selectedPlace } from './state/map';
+import { mapMode, selectedPlace, mapError, isDrawingActive, hasFinishedPolygon, drawingSqft } from './state/map';
+import { destroyDraw } from './maps/draw';
 import { fetchCompanyConfig } from './api/client';
 import { RoofDetails } from './components/RoofDetails';
 import { ContactInfo } from './components/ContactInfo';
@@ -54,24 +55,16 @@ export function App({ companyId }: { companyId: string }) {
             <div>
               <div class="rc-step-title">Measure Your Roof</div>
               <MapStep />
-              {selectedPlace.value && (
-                <button
-                  class="rc-btn-primary"
-                  style={{ marginTop: '12px' }}
-                  onClick={() => {
-                    // TODO Phase 6: use measured sqft from polygon
-                    // For now, map mode provides address context
-                  }}
-                >
-                  Continue
-                </button>
-              )}
               <div style={{ marginTop: '8px', textAlign: 'center' }}>
                 <a
                   class="rc-map-toggle"
                   onClick={() => {
                     mapMode.value = false;
                     selectedPlace.value = null;
+                    isDrawingActive.value = false;
+                    hasFinishedPolygon.value = false;
+                    drawingSqft.value = 0;
+                    destroyDraw();
                   }}
                 >
                   Enter sqft manually
@@ -82,12 +75,14 @@ export function App({ companyId }: { companyId: string }) {
             <div>
               <RoofDetails />
               <div style={{ marginTop: '8px', textAlign: 'center' }}>
-                <a
-                  class="rc-map-toggle"
-                  onClick={() => { mapMode.value = true; }}
-                >
-                  Measure on map
-                </a>
+                {!mapError.value && (
+                  <a
+                    class="rc-map-toggle"
+                    onClick={() => { mapMode.value = true; }}
+                  >
+                    Measure on map
+                  </a>
+                )}
               </div>
             </div>
           )}
