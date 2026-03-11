@@ -41,3 +41,57 @@ export async function importMapsLibrary(name: string): Promise<unknown> {
 export function _resetForTesting(): void {
   loaderPromise = null;
 }
+
+let terraDrawLoaderPromise: Promise<void> | null = null;
+
+/**
+ * Lazily injects Terra Draw UMD scripts into document.head sequentially.
+ * Core must load before adapter (adapter depends on window.terraDraw being present).
+ * Singleton — subsequent calls return the same promise.
+ *
+ * CDN URLs:
+ *   core:    https://unpkg.com/terra-draw@1.25.0/dist/terra-draw.umd.js
+ *   adapter: https://unpkg.com/terra-draw-google-maps-adapter@1.3.1/dist/terra-draw-google-maps-adapter.umd.js
+ *
+ * NOTE: Scripts load via src= (NOT textContent), so onload fires asynchronously.
+ * Do NOT call resolve() immediately after appendChild.
+ */
+export function loadTerraDrawScripts(): Promise<void> {
+  if (terraDrawLoaderPromise) return terraDrawLoaderPromise;
+
+  terraDrawLoaderPromise = new Promise<void>((resolve, reject) => {
+    // Guard: already loaded
+    if (
+      (window as any).terraDraw?.TerraDraw &&
+      (window as any).terraDrawGoogleMapsAdapter?.TerraDrawGoogleMapsAdapter
+    ) {
+      resolve();
+      return;
+    }
+
+    // Load core first, then adapter (adapter depends on window.terraDraw)
+    const coreScript = document.createElement('script');
+    coreScript.src = 'https://unpkg.com/terra-draw@1.25.0/dist/terra-draw.umd.js';
+    coreScript.onload = () => {
+      const adapterScript = document.createElement('script');
+      adapterScript.src =
+        'https://unpkg.com/terra-draw-google-maps-adapter@1.3.1/dist/terra-draw-google-maps-adapter.umd.js';
+      adapterScript.onload = () => resolve();
+      adapterScript.onerror = () =>
+        reject(new Error('Terra Draw adapter failed to load'));
+      document.head.appendChild(adapterScript);
+    };
+    coreScript.onerror = () =>
+      reject(new Error('Terra Draw core failed to load'));
+    document.head.appendChild(coreScript);
+  });
+
+  return terraDrawLoaderPromise;
+}
+
+/**
+ * Reset the Terra Draw loader singleton for testing purposes.
+ */
+export function _resetTerraDrawLoaderForTesting(): void {
+  terraDrawLoaderPromise = null;
+}
