@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Google Maps Roof Measurement
 status: in_progress
-stopped_at: null
+stopped_at: Completed 05-02-PLAN.md
 last_updated: "2026-03-11"
-last_activity: 2026-03-11 -- Completed 05-01-PLAN.md (API key endpoint, CDN loader, autocomplete layer)
+last_activity: 2026-03-11 — Completed 05-02 (AddressAutocomplete, MapView, MapStep, App map mode integration)
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 1
-  percent: 5
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 5 of 7 (Map Infrastructure + Address Autocomplete)
-Plan: 1 of 2 complete in current phase (Plan 01 done, Plan 02 pending)
-Status: In progress
-Last activity: 2026-03-11 — Completed 05-01 (GET /api/maps/key, lazy CDN loader, autocomplete session tokens)
+Phase: 5 of 7 (Map Infrastructure + Address Autocomplete) — COMPLETE
+Plan: 2 of 2 complete in current phase
+Status: Phase 5 complete, ready for Phase 6 planning
+Last activity: 2026-03-11 — Completed 05-02 (AddressAutocomplete portal dropdown, MapView satellite map, MapStep lazy orchestrator, App map mode toggle)
 
-Progress: [█░░░░░░░░░] 5%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -53,8 +53,11 @@ Progress: [█░░░░░░░░░] 5%
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 05 | 01 | 3 min | 2 | 10 |
+| 05 | 02 | deferred* | 1+1 | 6 |
 
-*Running avg: ~3 min/plan*
+*\* Plan 02 human verification deferred pending Google Maps API key*
+
+*Running avg: ~3 min/plan (auto tasks)*
 
 ## Accumulated Context
 
@@ -88,8 +91,14 @@ None.
 - Inline script resolve() called after appendChild (not onload) — textContent scripts execute synchronously
 - Session token reset only after resolvePlaceLocation completes fetchFields (ends billing session correctly)
 
+### 05-02 Decisions
+- Portal renders into document.body with inline styles — Shadow DOM boundary prevents CSS classes from reaching portaled content
+- onMouseDown preventDefault on suggestion items prevents blur-before-click (RESEARCH.md Pitfall 5)
+- mapMode signal is the sole lazy-loading gate — no Maps API calls until homeowner explicitly activates map mode (MAP-03)
+- MapView stores map instance in useRef, calls setCenter() on lat/lng change instead of re-creating map
+
 ## Session Continuity
 
 Last session: 2026-03-11
-Stopped at: Completed 05-01-PLAN.md
+Stopped at: Completed 05-02-PLAN.md (Phase 5 complete — human verification deferred pending API key)
 Resume file: None

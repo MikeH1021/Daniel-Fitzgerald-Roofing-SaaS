@@ -10,7 +10,7 @@ Requirements for Google Maps Roof Measurement milestone. Each maps to roadmap ph
 ### Map Infrastructure
 
 - [x] **MAP-01**: User can type an address and see autocomplete suggestions
-- [ ] **MAP-02**: Map displays satellite/hybrid view centered on selected address at roof-level zoom
+- [x] **MAP-02**: Map displays satellite/hybrid view centered on selected address at roof-level zoom
 - [x] **MAP-03**: Google Maps API loads lazily only when user activates map mode
 
 ### Measurement
@@ -63,7 +63,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MAP-01 | Phase 5 | Complete |
-| MAP-02 | Phase 5 | Pending |
+| MAP-02 | Phase 5 | Complete |
 | MAP-03 | Phase 5 | Complete |
 | MEAS-01 | Phase 6 | Pending |
 | MEAS-02 | Phase 6 | Pending |
