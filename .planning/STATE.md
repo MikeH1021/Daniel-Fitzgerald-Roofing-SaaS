@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Google Maps Roof Measurement
-status: ready_to_plan
+status: in_progress
 stopped_at: null
-last_updated: "2026-03-10"
-last_activity: 2026-03-10 -- Roadmap created for v1.1 (3 phases, 11 requirements mapped)
+last_updated: "2026-03-11"
+last_activity: 2026-03-11 -- Completed 05-01-PLAN.md (API key endpoint, CDN loader, autocomplete layer)
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 5
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 5 of 7 (Map Infrastructure + Address Autocomplete)
-Plan: — of — in current phase
-Status: Ready to plan
-Last activity: 2026-03-10 — v1.1 roadmap created, 11 requirements mapped to 3 phases
+Plan: 1 of 2 complete in current phase (Plan 01 done, Plan 02 pending)
+Status: In progress
+Last activity: 2026-03-11 — Completed 05-01 (GET /api/maps/key, lazy CDN loader, autocomplete session tokens)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 5%
 
 ## Performance Metrics
 
@@ -48,7 +48,13 @@ Progress: [░░░░░░░░░░] 0%
 | 3. Lead Delivery | 1 | ~4 min | ~4 min |
 | 4. Admin Settings | 2 | ~6 min | ~3 min |
 
-*v1.1 metrics will populate as plans complete*
+**v1.1 in progress:**
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 05 | 01 | 3 min | 2 | 10 |
+
+*Running avg: ~3 min/plan*
 
 ## Accumulated Context
 
@@ -73,10 +79,17 @@ None.
 
 - Pitch multiplier value discrepancy: ARCHITECTURE.md vs FEATURES.md use different values. Confirm against existing `packages/api` pricing engine before writing `utils/area.ts`.
 - Terra Draw CDN loading proof-of-concept needed before Phase 6 planning — `inlineDynamicImports: true` Vite config is an unusual constraint.
-- Autocomplete session tokens must be implemented from day one (5-10x cost overrun without them).
+- Autocomplete session tokens must be implemented from day one (5-10x cost overrun without them). ✅ RESOLVED in 05-01.
+- Pitch multiplier value discrepancy: ARCHITECTURE.md vs FEATURES.md use different values. Confirm against existing `packages/api` pricing engine before writing `utils/area.ts`.
+- Terra Draw CDN loading proof-of-concept needed before Phase 6 planning — `inlineDynamicImports: true` Vite config is an unusual constraint.
+
+### 05-01 Decisions
+- No `includedPrimaryTypes` filter on AutocompleteSuggestion — broader results recommended (add filtering in Phase 6 if noise observed)
+- Inline script resolve() called after appendChild (not onload) — textContent scripts execute synchronously
+- Session token reset only after resolvePlaceLocation completes fetchFields (ends billing session correctly)
 
 ## Session Continuity
 
-Last session: 2026-03-10
-Stopped at: Roadmap created — ready to plan Phase 5
+Last session: 2026-03-11
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

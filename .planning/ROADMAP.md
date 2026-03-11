@@ -79,6 +79,6 @@ Plans:
 | 2. Embeddable Widget | v1.0 | 2/2 | Complete | 2026-03-09 |
 | 3. Lead Delivery | v1.0 | 1/1 | Complete | 2026-03-10 |
 | 4. Admin Settings | v1.0 | 2/2 | Complete | 2026-03-10 |
-| 5. Map Infrastructure + Address Autocomplete | v1.1 | 0/2 | Not started | - |
+| 5. Map Infrastructure + Address Autocomplete | 1/2 | In Progress|  | - |
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 0/? | Not started | - |
 | 7. Lead Email Integration | v1.1 | 0/? | Not started | - |
