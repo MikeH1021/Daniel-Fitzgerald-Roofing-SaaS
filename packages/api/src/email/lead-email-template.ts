@@ -9,6 +9,7 @@ export interface LeadEmailData {
   material: string;
   estimateLow: number;
   estimateHigh: number;
+  address?: string;
 }
 
 function escapeHtml(str: string): string {
@@ -59,7 +60,11 @@ export function buildLeadEmailHtml(data: LeadEmailData): string {
       <tr>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold;">Phone</td>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;"><a href="tel:${phone}">${phone}</a></td>
-      </tr>
+      </tr>${data.address ? `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: bold; width: 120px;">Property Address</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(data.address)}</td>
+      </tr>` : ''}
     </table>
 
     <h2 style="font-size: 18px; color: #1e40af;">Roof Details</h2>

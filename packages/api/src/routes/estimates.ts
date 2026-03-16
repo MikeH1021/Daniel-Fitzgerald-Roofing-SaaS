@@ -118,6 +118,7 @@ estimates.post(
         material,
         estimateLow: result.estimateLow,
         estimateHigh: result.estimateHigh,
+        address: validated.address ?? null,
       });
 
       // Send email notification (non-blocking)
@@ -138,6 +139,7 @@ estimates.post(
               material,
               estimateLow: result.estimateLow,
               estimateHigh: result.estimateHigh,
+              address: validated.address,
             },
           }).catch((err) => {
             console.error('Lead notification email failed:', err);

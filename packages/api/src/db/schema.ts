@@ -50,5 +50,6 @@ export const leads = sqliteTable('leads', {
   material: text('material').notNull(),
   estimateLow: real('estimate_low').notNull(),
   estimateHigh: real('estimate_high').notNull(),
+  address: text('address'),
   createdAt: text('created_at').default("(datetime('now'))"),
 });

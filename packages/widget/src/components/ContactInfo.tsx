@@ -1,6 +1,7 @@
 import { h } from 'preact';
 import { signal } from '@preact/signals';
 import { formData, updateField, prevStep, nextStep, estimateResult, isLoading } from '../state/form';
+import { selectedPlace } from '../state/map';
 import { submitEstimate } from '../api/client';
 
 const errors = signal<Record<string, string>>({});
@@ -44,6 +45,7 @@ export function ContactInfo({ companyName, companyId }: { companyName: string; c
         email: data.email,
         phone: data.phone,
         consent: data.consent,
+        address: selectedPlace.value?.formattedAddress || undefined,
       });
       estimateResult.value = result;
       nextStep();
