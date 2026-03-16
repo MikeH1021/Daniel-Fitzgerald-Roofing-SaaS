@@ -28,7 +28,7 @@ Requirements for Google Maps Roof Measurement milestone. Each maps to roadmap ph
 
 ### Lead Data
 
-- [ ] **LEAD-01**: Property address from autocomplete is included in lead notification email
+- [x] **LEAD-01**: Property address from autocomplete is included in lead notification email
 
 ## v2 Requirements
 
@@ -72,7 +72,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MEAS-05 | Phase 6 | Complete |
 | UX-01 | Phase 6 | Complete |
 | UX-02 | Phase 6 | Complete |
-| LEAD-01 | Phase 7 | Pending |
+| LEAD-01 | Phase 7 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 11 total

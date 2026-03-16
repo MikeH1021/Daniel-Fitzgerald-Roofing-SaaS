@@ -23,7 +23,7 @@
 
 - [x] **Phase 5: Map Infrastructure + Address Autocomplete** - API key delivery, lazy loader, area math utilities, and address search with satellite map display
 - [ ] **Phase 6: Polygon Drawing + sqft Auto-fill + UX** - Roof polygon tracing on satellite map, auto-fill of sqft field, mobile controls, and mode toggle
-- [ ] **Phase 7: Lead Email Integration** - Property address captured from map propagates to lead notification email
+- [x] **Phase 7: Lead Email Integration** - Property address captured from map propagates to lead notification email (completed 2026-03-16)
 
 ## Phase Details
 
@@ -82,4 +82,4 @@ Plans:
 | 4. Admin Settings | v1.0 | 2/2 | Complete | 2026-03-10 |
 | 5. Map Infrastructure + Address Autocomplete | 2/2 | Complete   | 2026-03-11 | 2026-03-11 |
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 0/? | Not started | - |
-| 7. Lead Email Integration | v1.1 | 0/1 | Not started | - |
+| 7. Lead Email Integration | 1/1 | Complete   | 2026-03-16 | - |
