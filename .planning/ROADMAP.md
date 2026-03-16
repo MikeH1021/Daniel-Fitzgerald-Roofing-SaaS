@@ -65,10 +65,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. When a homeowner selects an address via map mode, the roofing company's lead email includes the property address
   2. When a homeowner uses manual sqft entry (no address entered), the lead email is unchanged from v1.0
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 07-01: TBD
+- [ ] 07-01-PLAN.md — Thread address through widget submit, API validation, DB schema, and email template (TDD)
 
 ## Progress
 
@@ -82,4 +82,4 @@ Plans:
 | 4. Admin Settings | v1.0 | 2/2 | Complete | 2026-03-10 |
 | 5. Map Infrastructure + Address Autocomplete | 2/2 | Complete   | 2026-03-11 | 2026-03-11 |
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 0/? | Not started | - |
-| 7. Lead Email Integration | v1.1 | 0/? | Not started | - |
+| 7. Lead Email Integration | v1.1 | 0/1 | Not started | - |
