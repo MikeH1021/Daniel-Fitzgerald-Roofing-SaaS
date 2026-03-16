@@ -122,7 +122,7 @@ describe('POST /api/estimates - lead capture', () => {
   beforeAll(async () => {
     await seedTestData(env.DB);
     // Create leads table for lead capture tests
-    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, address text, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
   });
 
   it('stores lead when contact fields and consent=true provided', async () => {
@@ -191,7 +191,7 @@ describe('POST /api/estimates - lead capture', () => {
 describe('POST /api/estimates - honeypot', () => {
   beforeAll(async () => {
     await seedTestData(env.DB);
-    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, address text, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
   });
 
   it('silently rejects submission with filled honeypot field', async () => {
@@ -268,5 +268,45 @@ describe('GET /api/config/:companyId', () => {
     expect(res.status).toBe(404);
     const body = await res.json() as { error: string };
     expect(body.error).toBe('Company not found');
+  });
+});
+
+describe('POST /api/estimates - lead address storage', () => {
+  beforeAll(async () => {
+    await seedTestData(env.DB);
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, address text, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
+  });
+
+  it('stores address when provided with lead', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+        firstName: 'Alice', lastName: 'Smith', email: 'alice@example.com', phone: '5550001111', consent: true,
+        address: '456 Oak Ave, Chicago, IL 60601',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(200);
+
+    const leads = await env.DB.prepare('SELECT address FROM leads WHERE email = ?').bind('alice@example.com').all();
+    expect(leads.results.length).toBe(1);
+    expect((leads.results[0] as any).address).toBe('456 Oak Ave, Chicago, IL 60601');
+  });
+
+  it('stores null address for manual-entry lead', async () => {
+    const res = await app.request('/api/estimates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sqft: 2000, pitch: 'medium', material: 'architectural', companyId: 'test-company-1',
+        firstName: 'Bob', lastName: 'Jones', email: 'bob@example.com', phone: '5550002222', consent: true,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+    expect(res.status).toBe(200);
+
+    const leads = await env.DB.prepare('SELECT address FROM leads WHERE email = ?').bind('bob@example.com').all();
+    expect(leads.results.length).toBe(1);
+    expect((leads.results[0] as any).address).toBeNull();
   });
 });

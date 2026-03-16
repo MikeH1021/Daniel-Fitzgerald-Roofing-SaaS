@@ -42,6 +42,21 @@ describe('buildLeadEmailHtml', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).not.toContain('<script>alert');
   });
+
+  it('includes property address in HTML when address is provided', () => {
+    const leadWithAddress: LeadEmailData = {
+      ...sampleLead,
+      address: '123 Main St, Springfield, IL 62701',
+    };
+    const html = buildLeadEmailHtml(leadWithAddress);
+    expect(html).toContain('Property Address');
+    expect(html).toContain('123 Main St, Springfield, IL 62701');
+  });
+
+  it('omits property address row when address is absent', () => {
+    const html = buildLeadEmailHtml(sampleLead);
+    expect(html).not.toContain('Property Address');
+  });
 });
 
 describe('sendLeadNotification', () => {
