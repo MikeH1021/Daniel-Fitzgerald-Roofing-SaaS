@@ -44,6 +44,49 @@
 
 ---
 
+## Milestone: v1.1 — Google Maps Roof Measurement
+
+**Shipped:** 2026-03-16
+**Phases:** 3 | **Plans:** 5 | **Timeline:** 7 days
+
+### What Was Built
+- Google Maps API key delivery + lazy CDN loading with zero widget bundle impact
+- Address autocomplete using Places AutocompleteSuggestion API with session token lifecycle
+- Satellite map view with portal-based dropdown rendering outside Shadow DOM
+- Terra Draw polygon tracing with pitch-adjusted sqft auto-calculation and live updates
+- CSP-graceful fallback for manual sqft entry when Maps API is blocked
+- Property address threaded from widget to lead notification email (conditional row)
+
+### What Worked
+- Research phase caught critical API deprecations (DrawingManager removed May 2026, legacy Autocomplete blocked since March 2025)
+- CDN loading via script injection sidestepped Vite's inlineDynamicImports constraint cleanly
+- Portal pattern for autocomplete dropdown solved Shadow DOM positioning without hacks
+- TDD continued to catch issues early — test stubs written before implementation
+- Phase 7 (lead email) was a clean 3-minute execution — pure data-threading with no surprises
+
+### What Was Inefficient
+- Phase 6 Plan 02 took 28 minutes (longest plan in project history) — drawing controls + CSP gate + CSS + integration tests were too much for one plan
+- ROADMAP.md plan checkboxes still got out of sync (Phase 6 plans showed incomplete despite having summaries)
+- Phase 5 Plan 02 human verification deferred pending Google Maps API key — still unresolved
+
+### Patterns Established
+- CDN script injection with sequential onload chains for libraries that depend on window globals
+- Portal rendering into document.body for components that need to escape Shadow DOM
+- Signal-based lazy loading gates (mapMode signal controls when Maps API loads)
+- Conditional email template rows with escapeHtml for user-sourced strings
+
+### Key Lessons
+1. Google Maps library ecosystem moves fast — always research current API status before planning
+2. Terra Draw requires sequential CDN loading (core → adapter) due to UMD window.terraDraw dependency
+3. Plans touching UI + CSS + integration tests + CSP handling should be split into smaller units
+4. Optional field threading (address?) through 6+ layers is straightforward but tedious — research mapping the exact files beforehand prevents missed layers
+
+### Cost Observations
+- Model mix: sonnet for research/execution, inherit for planning
+- Notable: Phase 7 completed in 3 minutes — well-researched simple phases execute extremely fast
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -51,14 +94,18 @@
 | Milestone | Execution Time | Phases | Key Change |
 |-----------|---------------|--------|------------|
 | v1.0 | 26 min | 4 | Initial project, TDD throughout |
+| v1.1 | ~38 min | 3 | CDN integration, research-driven planning |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Packages | LOC |
 |-----------|-------|----------|-----|
 | v1.0 | 63 | 3 (api, widget, admin) | 3,522 |
+| v1.1 | ~95 | 3 (api, widget, admin) | 5,254 |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. TDD with Cloudflare Workers pool testing catches platform-specific issues early
 2. Shadow DOM + CSS custom properties is the right pattern for embeddable widgets
+3. Research phase pays for itself — catching deprecated APIs before planning prevents rework
+4. ROADMAP.md checkbox sync is a recurring issue — needs tooling fix

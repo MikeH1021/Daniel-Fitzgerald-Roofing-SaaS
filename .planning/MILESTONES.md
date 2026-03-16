@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.1 Google Maps Roof Measurement (Shipped: 2026-03-16)
+
+**Phases completed:** 3 phases, 5 plans
+**Timeline:** 2026-03-09 to 2026-03-16 (7 days)
+**Lines added:** 5,633 across 50 files
+**Total codebase:** ~5,254 LOC TypeScript/CSS/SQL
+
+**Key accomplishments:**
+- Google Maps API key delivery via Worker secret + lazy CDN loading (zero widget size impact)
+- Address autocomplete with Places AutocompleteSuggestion API and session token lifecycle (cost-controlled)
+- Satellite map view with portal-based dropdown rendering outside Shadow DOM
+- Terra Draw polygon tracing with pitch-adjusted sqft auto-calculation and live updates
+- CSP-graceful fallback — manual sqft entry works when Maps API is blocked by host site
+- Property address from map mode threaded to lead notification email (conditional row, HTML-escaped)
+
+**Tech added:** Google Maps JS API (CDN), Terra Draw (CDN), Google Places AutocompleteSuggestion API
+
+---
+
 ## v1.0 MVP (Shipped: 2026-03-10)
 
 **Phases completed:** 4 phases, 7 plans

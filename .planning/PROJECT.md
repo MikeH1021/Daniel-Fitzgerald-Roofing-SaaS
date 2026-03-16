@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A SaaS embeddable widget that roofing companies add to their websites to generate leads. Homeowners enter roof details (sqft, pitch, material) and contact info, receive an instant price range estimate, and the roofing company gets notified via email with the lead. Each company gets an admin portal to customize branding, override pricing, and grab their embed code.
+A SaaS embeddable widget that roofing companies add to their websites to generate leads. Homeowners enter roof details (sqft, pitch, material) and contact info, receive an instant price range estimate, and the roofing company gets notified via email with the lead. Homeowners can optionally measure their roof on a satellite map with polygon drawing and pitch-adjusted sqft auto-calculation. Each company gets an admin portal to customize branding, override pricing, and grab their embed code.
 
 ## Core Value
 
@@ -30,18 +30,18 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 - ✓ Company can set primary brand color — v1.0
 - ✓ Company can override material costs and multipliers — v1.0
 - ✓ Company can view and copy embed code snippet — v1.0
+- ✓ Address autocomplete with Google Places API — v1.1
+- ✓ Satellite map preview of the homeowner's roof — v1.1
+- ✓ Polygon drawing tool to trace roof outline on map — v1.1
+- ✓ Auto-calculate footprint area from polygon — v1.1
+- ✓ Adjust calculated sqft for selected roof pitch — v1.1
+- ✓ Auto-fill sqft field from map measurement — v1.1
+- ✓ Manual sqft entry still works as fallback — v1.1
+- ✓ Property address from map mode included in lead email — v1.1
 
 ### Active
 
-<!-- v1.1 Google Maps Roof Measurement -->
-
-- [ ] Address autocomplete with Google Places API
-- [ ] Satellite map preview of the homeowner's roof
-- [ ] Polygon drawing tool to trace roof outline on map
-- [ ] Auto-calculate footprint area from polygon
-- [ ] Adjust calculated sqft for selected roof pitch
-- [ ] Auto-fill sqft field from map measurement
-- [ ] Manual sqft entry still works as fallback
+(None — next milestone not yet defined)
 
 ### Out of Scope
 
@@ -55,13 +55,19 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 - Permit cost estimation — varies by municipality
 - Exact / guaranteed pricing — liability risk, always show ranges
 - OAuth / social login for admin — email/password sufficient
+- AI/ML automatic roof detection — requires expensive server-side image processing
+- Exact pitch detection from satellite — 2D imagery cannot determine pitch
+- Multiple roof sections/facets — blows up 4-step max constraint
+- Storing polygon GeoJSON in database — no downstream use; sqft number is all that matters
+- Per-company Google Maps API keys — over-complex for v1; single SaaS-managed key
 
 ## Context
 
-- Shipped v1.0 with 3,522 LOC TypeScript across 3 packages (api, widget, admin)
+- Shipped v1.1 with ~5,254 LOC TypeScript across 3 packages (api, widget, admin)
 - Tech stack: Hono + Cloudflare Workers, D1 (SQLite), R2 (blob storage), Drizzle ORM, Preact, Vite, Zod, Resend API
-- Widget builds as 28KB gzipped single IIFE bundle
-- 63 automated tests (54 API + 9 widget), all passing
+- Google Maps JS API + Terra Draw loaded via CDN (lazy, no bundle impact)
+- Widget builds as single IIFE bundle with Shadow DOM isolation
+- ~95 automated tests (60 API + 35 widget), all passing
 - Competitor reference: SimpleRoof Estimates (simpleroofestimates.com)
 - Target customers: small-to-mid roofing companies
 - Pricing formula defaults need validation against real contractor quotes before launch
@@ -73,6 +79,7 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 - **Mobile**: Must work on mobile — many homeowners browse on phones
 - **Email delivery**: Lead emails must be reliable — this is the core value delivery
 - **D1 limits**: 100K writes/day on free tier — monitor for high-volume companies
+- **Maps API costs**: Session tokens required for Places API; single shared API key with referrer restrictions
 
 ## Key Decisions
 
@@ -91,16 +98,14 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 | Honeypot in route handler (not schema) | Returns fake 200 instead of 400 | ✓ Good |
 | Email via waitUntil with .catch() | Never blocks estimate response | ✓ Good |
 | Session cookies over JWT | Simple, secure, httpOnly | ✓ Good |
+| AutocompleteSuggestion over legacy Autocomplete | Legacy blocked for new keys since March 2025 | ✓ Good |
+| Terra Draw over DrawingManager | DrawingManager deprecated Aug 2025, removed May 2026 | ✓ Good |
+| Google Maps via CDN, not bundled | Preserves widget bundle size | ✓ Good |
+| Terra Draw via CDN script injection | Vite inlineDynamicImports prevents code splitting | ✓ Good |
+| Single shared GOOGLE_MAPS_API_KEY | Per-company keys deferred to v2; referrer restrictions | ✓ Good |
+| Portal rendering for autocomplete dropdown | Shadow DOM prevents nested dropdown positioning | ✓ Good |
+| No polygon GeoJSON in DB | Extract sqft client-side, discard geometry; D1 write limits | ✓ Good |
+| Optional address field through entire stack | Undefined = manual entry, present = map mode; backward compatible | ✓ Good |
 
 ---
-## Current Milestone: v1.1 Google Maps Roof Measurement
-
-**Goal:** Let homeowners who don't know their roof sqft draw their roof on a satellite map and get an auto-calculated, pitch-adjusted square footage for their estimate.
-
-**Target features:**
-- Address autocomplete → satellite map view
-- Polygon roof tracing tool
-- Pitch-adjusted sqft auto-calculation
-- Seamless fallback to manual sqft entry
-
-*Last updated: 2026-03-10 after v1.1 milestone started*
+*Last updated: 2026-03-16 after v1.1 milestone completed*
