@@ -41,11 +41,30 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 
 ### Active
 
-(None — next milestone not yet defined)
+#### Current Milestone: v2.0 Admin Platform & Lead Management
+
+**Goal:** Transform the admin from a settings panel into a full platform — lead management, RBAC, analytics, security hardening, and widget UX improvements.
+
+- [ ] Admin can view list of leads per company with search/filter
+- [ ] Admin can export leads as CSV per company
+- [ ] Customer receives PDF or email copy of their estimate
+- [ ] Super-admin role can manage all companies; company-admin can only manage their own
+- [ ] Login endpoint is rate-limited
+- [ ] Session expiry triggers auto-redirect to login
+- [ ] CSRF protection on all form submissions
+- [ ] Admin can soft-delete/archive a company
+- [ ] Live widget preview in admin branding editor
+- [ ] Pricing inputs validate low < high, no negatives, sensible ranges
+- [ ] Admin sees per-company stats: total estimates, total leads, popular materials
+- [ ] User can go back and edit roof details after viewing estimate without re-entering contact info
+- [ ] Widget shows specific error messages from API instead of generic failures
+- [ ] Remove legacy session-scoped admin routes
+- [ ] Add DB indexes on leads.companyId and leads.createdAt
+- [ ] Pagination on leads and companies list endpoints
 
 ### Out of Scope
 
-- Lead management dashboard — email notifications only for v1
+- ~~Lead management dashboard~~ — moved to v2.0 Active
 - CRM integrations (HubSpot, Salesforce, etc.) — v2
 - WordPress plugin — script embed only for v1
 - Full theme control (fonts, spacing, etc.) — colors + logo only for v1
@@ -108,4 +127,4 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 | Optional address field through entire stack | Undefined = manual entry, present = map mode; backward compatible | ✓ Good |
 
 ---
-*Last updated: 2026-03-16 after v1.1 milestone completed*
+*Last updated: 2026-03-24 after v2.0 milestone started*
