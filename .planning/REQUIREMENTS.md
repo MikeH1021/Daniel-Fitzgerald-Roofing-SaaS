@@ -76,28 +76,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LEAD-01 | — | Pending |
-| LEAD-02 | — | Pending |
-| LEAD-03 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| COMP-01 | — | Pending |
-| COMP-02 | — | Pending |
-| PRICE-01 | — | Pending |
-| STATS-01 | — | Pending |
-| WID-01 | — | Pending |
-| WID-02 | — | Pending |
-| DEBT-01 | — | Pending |
-| DEBT-02 | — | Pending |
-| DEBT-03 | — | Pending |
+| LEAD-01 | Phase 9 | Pending |
+| LEAD-02 | Phase 9 | Pending |
+| LEAD-03 | Phase 9 | Pending |
+| AUTH-01 | Phase 8 | Pending |
+| AUTH-02 | Phase 8 | Pending |
+| AUTH-03 | Phase 8 | Pending |
+| AUTH-04 | Phase 8 | Pending |
+| COMP-01 | Phase 10 | Pending |
+| COMP-02 | Phase 10 | Pending |
+| PRICE-01 | Phase 10 | Pending |
+| STATS-01 | Phase 9 | Pending |
+| WID-01 | Phase 10 | Pending |
+| WID-02 | Phase 10 | Pending |
+| DEBT-01 | Phase 8 | Pending |
+| DEBT-02 | Phase 8 | Pending |
+| DEBT-03 | Phase 8 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-24*
-*Last updated: 2026-03-24 after initial definition*
+*Last updated: 2026-03-24 — traceability populated after roadmap creation*
