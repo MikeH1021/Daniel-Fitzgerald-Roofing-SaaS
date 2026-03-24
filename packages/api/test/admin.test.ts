@@ -4,7 +4,7 @@ import app from '../src/index';
 
 async function seedAdminData(db: D1Database) {
   // D1 exec requires single-line statements
-  await db.exec("CREATE TABLE IF NOT EXISTS companies (id text PRIMARY KEY NOT NULL, name text NOT NULL, email text NOT NULL, password_hash text, logo_url text, primary_color text DEFAULT '#2563eb', created_at text DEFAULT (datetime('now')), updated_at text DEFAULT (datetime('now')));");
+  await db.exec("CREATE TABLE IF NOT EXISTS companies (id text PRIMARY KEY NOT NULL, name text NOT NULL, email text NOT NULL, slug text, password_hash text, logo_url text, primary_color text DEFAULT '#2563eb', role text NOT NULL DEFAULT 'company-admin', created_at text DEFAULT (datetime('now')), updated_at text DEFAULT (datetime('now')));");
   await db.exec("CREATE TABLE IF NOT EXISTS admin_sessions (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, expires_at text NOT NULL, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
   await db.exec("CREATE TABLE IF NOT EXISTS pricing_overrides (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, material_key text NOT NULL, cost_low real, cost_high real, pitch_flat real, pitch_low real, pitch_medium real, pitch_steep real, FOREIGN KEY (company_id) REFERENCES companies(id));");
 }
@@ -461,5 +461,180 @@ describe('POST /api/admin/logout - session invalidated', () => {
       headers: { Cookie: `session=${sessionCookie}` },
     }, env);
     expect(res.status).toBe(401);
+  });
+});
+
+// ============================================================
+// RBAC Tests
+// ============================================================
+
+describe('RBAC - super-admin vs company-admin access', () => {
+  let superAdminCookie: string;
+  let companyAdminCookie: string;
+  const superAdminId = 'super-admin-company';
+  const companyAdminId = 'company-admin-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    // Insert super-admin company
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${superAdminId}', 'Super Admin Co', 'superadmin@test.com', '#2563eb', 'super-admin');`);
+    // Insert company-admin company
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${companyAdminId}', 'Company Admin Co', 'companyadmin@test.com', '#2563eb', 'company-admin');`);
+    superAdminCookie = await setupAndLogin('superadmin@test.com', 'SuperAdmin1!');
+    companyAdminCookie = await setupAndLogin('companyadmin@test.com', 'CompanyAdmin1!');
+  });
+
+  it('super-admin can GET /api/admin/companies (200)', async () => {
+    const res = await app.request('/api/admin/companies', {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+  });
+
+  it('company-admin GET /api/admin/companies returns 403', async () => {
+    const res = await app.request('/api/admin/companies', {
+      method: 'GET',
+      headers: { Cookie: `session=${companyAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(403);
+  });
+
+  it('company-admin can access own company settings (200)', async () => {
+    const res = await app.request(`/api/admin/companies/${companyAdminId}/settings`, {
+      method: 'GET',
+      headers: { Cookie: `session=${companyAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+  });
+
+  it('company-admin cannot access another company settings (403)', async () => {
+    const res = await app.request(`/api/admin/companies/${superAdminId}/settings`, {
+      method: 'GET',
+      headers: { Cookie: `session=${companyAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(403);
+  });
+
+  it('super-admin can access any company settings (200)', async () => {
+    const res = await app.request(`/api/admin/companies/${companyAdminId}/settings`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+  });
+
+  it('GET /api/admin/me returns companyId and role', async () => {
+    const res = await app.request('/api/admin/me', {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { companyId: string; role: string };
+    expect(body.companyId).toBe(superAdminId);
+    expect(body.role).toBe('super-admin');
+  });
+});
+
+// ============================================================
+// Rate Limiting Tests
+// ============================================================
+
+describe('Login rate limiting', () => {
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('ratelimit-company', 'Rate Limit Co', 'ratelimit@test.com', '#2563eb');");
+    await app.request('/api/admin/setup', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'ratelimit@test.com', password: 'RatePass1!' }),
+      headers: { 'Content-Type': 'application/json' },
+    }, env);
+  });
+
+  it('returns 429 after 5 failed login attempts within 60 seconds', async () => {
+    // Make 5 failed attempts
+    for (let i = 0; i < 5; i++) {
+      await app.request('/api/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'ratelimit@test.com', password: 'WrongPass!' }),
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '1.2.3.4' },
+      }, env);
+    }
+    // 6th attempt should be rate limited
+    const res = await app.request('/api/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'ratelimit@test.com', password: 'WrongPass!' }),
+      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '1.2.3.4' },
+    }, env);
+    expect(res.status).toBe(429);
+  });
+});
+
+// ============================================================
+// CSRF Tests
+// ============================================================
+
+describe('CSRF protection', () => {
+  let sessionCookie: string;
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('csrf-company', 'CSRF Co', 'csrf@test.com', '#2563eb', 'super-admin');");
+    sessionCookie = await setupAndLogin('csrf@test.com', 'CsrfPass1!');
+  });
+
+  it('state-changing request (PATCH) without Origin header or CSRF token returns 403', async () => {
+    const res = await app.request('/api/admin/companies/csrf-company/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ primaryColor: '#ff0000' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `session=${sessionCookie}`,
+        // No Origin header, no X-CSRF-Token
+      },
+    }, env);
+    expect(res.status).toBe(403);
+  });
+
+  it('state-changing request with matching Origin header succeeds', async () => {
+    const res = await app.request('http://localhost/api/admin/companies/csrf-company/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ primaryColor: '#ff0000' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `session=${sessionCookie}`,
+        Origin: 'http://localhost',
+      },
+    }, env);
+    expect(res.status).toBe(200);
+  });
+
+  it('GET requests are exempt from CSRF check', async () => {
+    const res = await app.request('/api/admin/companies/csrf-company/settings', {
+      method: 'GET',
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+  });
+
+  it('state-changing request with valid X-CSRF-Token header succeeds', async () => {
+    // First get the CSRF token
+    const tokenRes = await app.request('/api/admin/csrf-token', {
+      method: 'GET',
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(tokenRes.status).toBe(200);
+    const { token } = await tokenRes.json() as { token: string };
+
+    const res = await app.request('/api/admin/companies/csrf-company/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ primaryColor: '#00ff00' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `session=${sessionCookie}`,
+        'X-CSRF-Token': token,
+      },
+    }, env);
+    expect(res.status).toBe(200);
   });
 });
