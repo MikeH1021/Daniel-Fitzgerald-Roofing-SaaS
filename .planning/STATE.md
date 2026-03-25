@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Admin Platform & Lead Management
-status: in_progress
-stopped_at: Completed 08-01-PLAN.md — RBAC, CSRF, rate limiting, session expiry redirect
-last_updated: "2026-03-25"
-last_activity: 2026-03-25 — 08-01 complete (RBAC, CSRF, rate limiting, frontend 401 redirect)
+status: executing
+stopped_at: Completed 08-02-PLAN.md — legacy route removal, pagination, leads endpoint, DB indexes
+last_updated: "2026-03-25T00:14:16.788Z"
+last_activity: "2026-03-25 — 08-01 complete: RBAC enforced server-side, CSRF protection, login rate limiting, frontend 401 redirect"
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
   percent: 10
 ---
 
@@ -46,6 +46,8 @@ Recent decisions relevant to v2.0:
 - Rate limiter uses CF Workers binding in production with in-memory Map fallback for testability
 - Role stored in companies table; validateSession JOINs to return role in single query
 - Legacy session-scoped admin API methods removed from frontend; all operations use company-scoped routes
+- [Phase 08-security-foundation-tech-debt]: Migration numbered 0004 (not 0001 as planned) because 0001 already existed — appended to existing sequence
+- [Phase 08-security-foundation-tech-debt]: Pagination shape: { data[], total, page, pageSize } established consistently across all list endpoints
 
 ### Pending Todos
 
@@ -57,6 +59,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25
-Stopped at: Completed 08-01-PLAN.md — RBAC, CSRF, rate limiting, session expiry redirect
+Last session: 2026-03-25T00:14:10.184Z
+Stopped at: Completed 08-02-PLAN.md — legacy route removal, pagination, leads endpoint, DB indexes
 Resume file: None

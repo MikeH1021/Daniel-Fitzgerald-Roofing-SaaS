@@ -40,9 +40,9 @@ Requirements for v2.0 Admin Platform & Lead Management. Each maps to roadmap pha
 
 ### Tech Debt
 
-- [ ] **DEBT-01**: Remove legacy session-scoped admin routes (/admin/settings, /admin/pricing, /admin/logo)
-- [ ] **DEBT-02**: Add database indexes on leads.companyId and leads.createdAt for query performance
-- [ ] **DEBT-03**: Pagination on leads list and companies list API endpoints
+- [x] **DEBT-01**: Remove legacy session-scoped admin routes (/admin/settings, /admin/pricing, /admin/logo)
+- [x] **DEBT-02**: Add database indexes on leads.companyId and leads.createdAt for query performance
+- [x] **DEBT-03**: Pagination on leads list and companies list API endpoints
 
 ## Future Requirements
 
@@ -89,9 +89,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STATS-01 | Phase 9 | Pending |
 | WID-01 | Phase 10 | Pending |
 | WID-02 | Phase 10 | Pending |
-| DEBT-01 | Phase 8 | Pending |
-| DEBT-02 | Phase 8 | Pending |
-| DEBT-03 | Phase 8 | Pending |
+| DEBT-01 | Phase 8 | Complete |
+| DEBT-02 | Phase 8 | Complete |
+| DEBT-03 | Phase 8 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 16 total
