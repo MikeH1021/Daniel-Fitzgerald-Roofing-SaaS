@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A SaaS embeddable widget that roofing companies add to their websites to generate leads. Homeowners enter roof details (sqft, pitch, material) and contact info, receive an instant price range estimate, and the roofing company gets notified via email with the lead. Homeowners can optionally measure their roof on a satellite map with polygon drawing and pitch-adjusted sqft auto-calculation. Each company gets an admin portal to customize branding, override pricing, and grab their embed code.
+A SaaS embeddable widget that roofing companies add to their websites to generate leads. Homeowners enter roof details (sqft, pitch, material) and contact info, receive an instant price range estimate, and both the roofing company and homeowner get notified via email. Homeowners can optionally measure their roof on a satellite map with polygon drawing and pitch-adjusted sqft auto-calculation. Each company gets a full admin portal with RBAC, lead management (search, filter, CSV export), per-company analytics, branding customization with live preview, and pricing controls with validation.
 
 ## Core Value
 
@@ -39,37 +39,34 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 - ✓ Manual sqft entry still works as fallback — v1.1
 - ✓ Property address from map mode included in lead email — v1.1
 
+- ✓ Admin can view list of leads per company with search/filter — v2.0
+- ✓ Admin can export leads as CSV per company — v2.0
+- ✓ Customer receives email copy of their estimate — v2.0
+- ✓ Super-admin role can manage all companies; company-admin scoped to own — v2.0
+- ✓ Login endpoint is rate-limited (5 attempts/60s) — v2.0
+- ✓ Session expiry triggers auto-redirect to login — v2.0
+- ✓ CSRF protection on all state-changing endpoints — v2.0
+- ✓ Admin can soft-delete/archive a company — v2.0
+- ✓ Live widget preview in admin branding editor — v2.0
+- ✓ Pricing inputs validate low < high, no negatives, sensible ranges — v2.0
+- ✓ Admin sees per-company stats: total estimates, total leads, popular materials — v2.0
+- ✓ User can go back and edit roof details without re-entering contact info — v2.0
+- ✓ Widget shows specific error messages from API — v2.0
+- ✓ Legacy session-scoped admin routes removed — v2.0
+- ✓ DB indexes on leads.companyId and leads.createdAt — v2.0
+- ✓ Pagination on leads and companies list endpoints — v2.0
+
 ### Active
 
-#### Current Milestone: v2.0 Admin Platform & Lead Management
-
-**Goal:** Transform the admin from a settings panel into a full platform — lead management, RBAC, analytics, security hardening, and widget UX improvements.
-
-- [ ] Admin can view list of leads per company with search/filter
-- [ ] Admin can export leads as CSV per company
-- [ ] Customer receives PDF or email copy of their estimate
-- [ ] Super-admin role can manage all companies; company-admin can only manage their own
-- [ ] Login endpoint is rate-limited
-- [ ] Session expiry triggers auto-redirect to login
-- [ ] CSRF protection on all form submissions
-- [ ] Admin can soft-delete/archive a company
-- [ ] Live widget preview in admin branding editor
-- [ ] Pricing inputs validate low < high, no negatives, sensible ranges
-- [ ] Admin sees per-company stats: total estimates, total leads, popular materials
-- [ ] User can go back and edit roof details after viewing estimate without re-entering contact info
-- [ ] Widget shows specific error messages from API instead of generic failures
-- [ ] Remove legacy session-scoped admin routes
-- [ ] Add DB indexes on leads.companyId and leads.createdAt
-- [ ] Pagination on leads and companies list endpoints
+No active requirements. Next milestone not yet defined.
 
 ### Out of Scope
 
-- ~~Lead management dashboard~~ — moved to v2.0 Active
-- CRM integrations (HubSpot, Salesforce, etc.) — v2
-- WordPress plugin — script embed only for v1
-- Full theme control (fonts, spacing, etc.) — colors + logo only for v1
-- Payment processing / billing for SaaS subscriptions — handle offline for v1
-- SMS/text notifications to roofing company — email only for v1
+- CRM integrations (HubSpot, Salesforce, etc.) — future milestone
+- WordPress plugin — script embed works on any site
+- Full theme control (fonts, spacing, etc.) — colors + logo sufficient
+- Payment processing / billing for SaaS subscriptions — handle offline
+- SMS/text notifications to roofing company — email sufficient
 - Contractor marketplace / matching — different business model
 - Permit cost estimation — varies by municipality
 - Exact / guaranteed pricing — liability risk, always show ranges
@@ -77,16 +74,17 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 - AI/ML automatic roof detection — requires expensive server-side image processing
 - Exact pitch detection from satellite — 2D imagery cannot determine pitch
 - Multiple roof sections/facets — blows up 4-step max constraint
-- Storing polygon GeoJSON in database — no downstream use; sqft number is all that matters
-- Per-company Google Maps API keys — over-complex for v1; single SaaS-managed key
+- Per-company Google Maps API keys — single SaaS-managed key with referrer restrictions
 
 ## Context
 
-- Shipped v1.1 with ~5,254 LOC TypeScript across 3 packages (api, widget, admin)
+- Shipped v2.0 with ~10,400 LOC TypeScript/CSS across 3 packages (api, widget, admin)
 - Tech stack: Hono + Cloudflare Workers, D1 (SQLite), R2 (blob storage), Drizzle ORM, Preact, Vite, Zod, Resend API
 - Google Maps JS API + Terra Draw loaded via CDN (lazy, no bundle impact)
 - Widget builds as single IIFE bundle with Shadow DOM isolation
-- ~95 automated tests (60 API + 35 widget), all passing
+- 120 automated tests (78 API + 25 estimates + 8 lead-notification + 2 maps + 7 engine), all passing
+- RBAC: super-admin and company-admin roles enforced server-side
+- Security: CSRF protection, login rate limiting, session expiry redirect
 - Competitor reference: SimpleRoof Estimates (simpleroofestimates.com)
 - Target customers: small-to-mid roofing companies
 - Pricing formula defaults need validation against real contractor quotes before launch
@@ -125,6 +123,15 @@ Homeowners get an instant, credible roof estimate — and the roofing company ca
 | Portal rendering for autocomplete dropdown | Shadow DOM prevents nested dropdown positioning | ✓ Good |
 | No polygon GeoJSON in DB | Extract sqft client-side, discard geometry; D1 write limits | ✓ Good |
 | Optional address field through entire stack | Undefined = manual entry, present = map mode; backward compatible | ✓ Good |
+| RBAC enforced server-side, not just UI | company-admin must be checked at API layer | ✓ Good |
+| CSRF via Origin header + token fallback | Simpler than double-submit cookie; works with SPA | ✓ Good |
+| Rate limiting via CF Workers RateLimit binding | In-memory Map fallback for testing | ✓ Good |
+| Soft-delete with archivedAt timestamp | Preserves data, allows restore; better than boolean | ✓ Good |
+| Widget preview as inline mock, not iframe | Avoids cross-origin issues in dev | ✓ Good |
+| Customer estimate email via waitUntil | Same pattern as lead notification; never blocks response | ✓ Good |
+| Stats via SQL aggregation, not client-side | COUNT, AVG, GROUP BY — efficient for any data size | ✓ Good |
+| CSV export as dedicated endpoint | Separate from paginated list; full data dump | ✓ Good |
+| goToStep without resetting formData | Contact info preserved on back-navigation | ✓ Good |
 
 ---
-*Last updated: 2026-03-24 after v2.0 milestone started*
+*Last updated: 2026-03-25 after v2.0 milestone complete*

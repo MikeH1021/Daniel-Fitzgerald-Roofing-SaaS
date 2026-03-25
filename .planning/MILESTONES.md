@@ -1,5 +1,14 @@
 # Milestones
 
+## v2.0 Admin Platform & Lead Management (Shipped: 2026-03-25)
+
+**Phases completed:** 3 phases, 7 plans, 2 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.1 Google Maps Roof Measurement (Shipped: 2026-03-16)
 
 **Phases completed:** 3 phases, 5 plans
