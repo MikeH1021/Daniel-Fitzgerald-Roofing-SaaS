@@ -76,7 +76,11 @@ Plans:
   3. Pricing form rejects inputs where cost_low >= cost_high, any negative values, or values outside sensible ranges, with clear error messages
   4. A homeowner who reaches the estimate screen can click back to edit roof details and their contact info is still filled in when they return
   5. When the API returns a rate limit or validation error, the widget displays a specific, human-readable message instead of a generic failure
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 10-01-PLAN.md — API: company archive/restore endpoints and pricing input validation
+- [ ] 10-02-PLAN.md — Admin UI: archive/restore controls, live branding preview, pricing validation UI
+- [ ] 10-03-PLAN.md — Widget UX: back-to-edit navigation and specific API error messages
 
 ## Progress
 
@@ -90,5 +94,5 @@ Plans:
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 7. Lead Email Integration | v1.1 | 1/1 | Complete | 2026-03-16 |
 | 8. Security Foundation & Tech Debt | v2.0 | 2/2 | Complete | 2026-03-25 |
-| 9. Lead Management & Analytics | 2/2 | Complete   | 2026-03-25 | - |
-| 10. Admin & Widget Polish | v2.0 | 0/? | Not started | - |
+| 9. Lead Management & Analytics | v2.0 | 2/2 | Complete | 2026-03-25 |
+| 10. Admin & Widget Polish | v2.0 | 0/3 | Not started | - |
