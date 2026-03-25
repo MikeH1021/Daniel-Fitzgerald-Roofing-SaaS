@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, count, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Bindings } from '../types';
 import type { AdminVars } from '../middleware/auth';
@@ -10,7 +10,7 @@ import { authMiddleware, superAdminOnly, companyAccessGuard } from '../middlewar
 import { csrfMiddleware } from '../middleware/csrf';
 import { loginRateLimiter } from '../middleware/rate-limit';
 import { createDb } from '../db';
-import { companies, pricingOverrides } from '../db/schema';
+import { companies, pricingOverrides, leads } from '../db/schema';
 import { hashPassword, verifyPassword } from '../auth/password';
 import { createSession, deleteSession } from '../auth/session';
 
@@ -167,18 +167,26 @@ admin.post('/companies', superAdminOnly, zValidator('json', createCompanySchema)
 });
 
 admin.get('/companies', superAdminOnly, async (c) => {
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(c.req.query('pageSize') || '20', 10)));
+  const offset = (page - 1) * pageSize;
   const db = createDb(c.env.DB);
-  const rows = await db
-    .select({
-      id: companies.id,
-      name: companies.name,
-      slug: companies.slug,
-      email: companies.email,
-      logoUrl: companies.logoUrl,
-      primaryColor: companies.primaryColor,
-    })
-    .from(companies);
-  return c.json(rows);
+  const [rows, totalResult] = await Promise.all([
+    db
+      .select({
+        id: companies.id,
+        name: companies.name,
+        slug: companies.slug,
+        email: companies.email,
+        logoUrl: companies.logoUrl,
+        primaryColor: companies.primaryColor,
+      })
+      .from(companies)
+      .limit(pageSize)
+      .offset(offset),
+    db.select({ count: count() }).from(companies),
+  ]);
+  return c.json({ data: rows, total: totalResult[0].count, page, pageSize });
 });
 
 const updateCompanySchema = z.object({
@@ -286,6 +294,27 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/webp': '.webp',
   'image/svg+xml': '.svg',
 };
+
+// --- Leads list endpoint (paginated) ---
+
+admin.get('/companies/:companyId/leads', companyAccessGuard, async (c) => {
+  const companyId = c.req.param('companyId');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(c.req.query('pageSize') || '20', 10)));
+  const offset = (page - 1) * pageSize;
+  const db = createDb(c.env.DB);
+  const [rows, totalResult] = await Promise.all([
+    db
+      .select()
+      .from(leads)
+      .where(eq(leads.companyId, companyId))
+      .orderBy(desc(leads.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    db.select({ count: count() }).from(leads).where(eq(leads.companyId, companyId)),
+  ]);
+  return c.json({ data: rows, total: totalResult[0].count, page, pageSize });
+});
 
 // --- Company-scoped embed-code endpoint ---
 

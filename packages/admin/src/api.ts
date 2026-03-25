@@ -83,7 +83,12 @@ export const api = {
   async listCompanies() {
     const res = await request('/companies');
     if (!res.ok) throw new Error('Failed to load companies');
-    return res.json() as Promise<Company[]>;
+    const body = await res.json() as { data?: Company[] } | Company[];
+    // Handle paginated response shape { data, total, page, pageSize }
+    if (body && typeof body === 'object' && !Array.isArray(body) && 'data' in body) {
+      return body.data as Company[];
+    }
+    return body as Company[];
   },
 
   async createCompany(data: { name: string; email: string; slug?: string }) {

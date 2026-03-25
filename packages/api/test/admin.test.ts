@@ -717,3 +717,120 @@ describe('GET /api/admin/companies/:companyId/embed-code', () => {
     expect(res.status).toBe(403);
   });
 });
+
+// ============================================================
+// Task 2 (08-02): Pagination for list endpoints + leads endpoint
+// ============================================================
+
+describe('GET /api/admin/companies - paginated response', () => {
+  let superAdminCookie: string;
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('paginate-super', 'Paginate Super', 'pagsuper@test.com', '#2563eb', 'super-admin');");
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('paginate-co-1', 'Paginate Co 1', 'pagco1@test.com', '#2563eb');");
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('paginate-co-2', 'Paginate Co 2', 'pagco2@test.com', '#2563eb');");
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('paginate-co-3', 'Paginate Co 3', 'pagco3@test.com', '#2563eb');");
+    superAdminCookie = await setupAndLogin('pagsuper@test.com', 'PagSuper1!');
+  });
+
+  it('returns paginated response with { data, total, page, pageSize }', async () => {
+    const res = await app.request('/api/admin/companies', {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: unknown[]; total: number; page: number; pageSize: number };
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('total');
+    expect(body).toHaveProperty('page');
+    expect(body).toHaveProperty('pageSize');
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(typeof body.total).toBe('number');
+  });
+
+  it('GET /api/admin/companies?page=1&pageSize=2 returns 2 companies with correct total', async () => {
+    const res = await app.request('/api/admin/companies?page=1&pageSize=2', {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: unknown[]; total: number; page: number; pageSize: number };
+    expect(body.data.length).toBe(2);
+    expect(body.page).toBe(1);
+    expect(body.pageSize).toBe(2);
+    expect(body.total).toBeGreaterThanOrEqual(4); // at least 4 companies seeded
+  });
+});
+
+describe('GET /api/companies (public) - paginated response', () => {
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('pub-co-1', 'Public Co 1', 'pubco1@test.com', '#2563eb');");
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('pub-co-2', 'Public Co 2', 'pubco2@test.com', '#2563eb');");
+  });
+
+  it('returns paginated response with { data, total, page, pageSize }', async () => {
+    const res = await app.request('/api/companies', { method: 'GET' }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: unknown[]; total: number; page: number; pageSize: number };
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('total');
+    expect(body).toHaveProperty('page');
+    expect(body).toHaveProperty('pageSize');
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  it('pageSize param is respected', async () => {
+    const res = await app.request('/api/companies?page=1&pageSize=1', { method: 'GET' }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: unknown[]; total: number; page: number; pageSize: number };
+    expect(body.data.length).toBe(1);
+    expect(body.pageSize).toBe(1);
+  });
+});
+
+describe('GET /api/admin/companies/:companyId/leads - paginated response', () => {
+  let superAdminCookie: string;
+  const companyId = 'leads-paginate-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${companyId}', 'Leads Paginate Co', 'leadspag@test.com', '#2563eb', 'super-admin');`);
+    // Create leads table if not exists
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, address text, created_at text DEFAULT (datetime('now')));");
+    // Seed 5 leads for this company
+    for (let i = 1; i <= 5; i++) {
+      await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high) VALUES ('lead-${i}', '${companyId}', 'First${i}', 'Last${i}', 'lead${i}@test.com', '555-000${i}', 1, 'I consent', 1500, 'medium', 'architectural', 5000, 7000);`);
+    }
+    superAdminCookie = await setupAndLogin('leadspag@test.com', 'LeadsPag1!');
+  });
+
+  it('returns paginated response with { data, total, page, pageSize }', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: unknown[]; total: number; page: number; pageSize: number };
+    expect(body).toHaveProperty('data');
+    expect(body).toHaveProperty('total');
+    expect(body).toHaveProperty('page');
+    expect(body).toHaveProperty('pageSize');
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.total).toBe(5);
+  });
+
+  it('GET /api/admin/companies/:companyId/leads?page=2&pageSize=2 returns correct offset', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?page=2&pageSize=2`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: unknown[]; total: number; page: number; pageSize: number };
+    expect(body.data.length).toBe(2);
+    expect(body.page).toBe(2);
+    expect(body.pageSize).toBe(2);
+    expect(body.total).toBe(5);
+  });
+});
