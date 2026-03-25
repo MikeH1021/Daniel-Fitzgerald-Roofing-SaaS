@@ -60,6 +60,38 @@ export interface Company {
   primaryColor: string;
 }
 
+export interface Lead {
+  id: string;
+  companyId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  consentGiven: boolean;
+  consentText: string | null;
+  sqft: number;
+  pitch: string;
+  material: string;
+  estimateLow: number;
+  estimateHigh: number;
+  address: string | null;
+  createdAt: string;
+}
+
+export interface LeadsResponse {
+  data: Lead[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface Stats {
+  totalLeads: number;
+  totalEstimates: number;
+  popularMaterial: string | null;
+  averageSqft: number;
+}
+
 export const api = {
   async login(email: string, password: string) {
     const res = await jsonRequest('/login', {
@@ -182,5 +214,45 @@ export const api = {
     const res = await request('/me');
     if (!res.ok) return null;
     return res.json() as Promise<{ companyId: string; role: 'super-admin' | 'company-admin'; name: string }>;
+  },
+
+  // --- Lead management ---
+
+  async getLeads(companyId: string, params?: { search?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.page != null) qs.set('page', String(params.page));
+    if (params?.pageSize != null) qs.set('pageSize', String(params.pageSize));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await request(`/companies/${companyId}/leads${query}`);
+    if (!res.ok) throw new Error('Failed to load leads');
+    return res.json() as Promise<LeadsResponse>;
+  },
+
+  async exportLeadsCsv(companyId: string, params?: { search?: string; from?: string; to?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await request(`/companies/${companyId}/leads/csv${query}`);
+    if (!res.ok) throw new Error('Failed to export leads');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-${companyId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  async getStats(companyId: string) {
+    const res = await request(`/companies/${companyId}/stats`);
+    if (!res.ok) throw new Error('Failed to load stats');
+    return res.json() as Promise<Stats>;
   },
 };
