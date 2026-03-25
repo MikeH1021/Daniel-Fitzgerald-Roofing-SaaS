@@ -61,7 +61,7 @@ Plans:
   2. Admin can download a CSV file of their leads with all relevant fields included
   3. After submitting the estimate form, the homeowner receives an email (or PDF) with their estimate details
   4. Admin sees a dashboard panel showing total estimates, total leads, popular materials, and average sqft for their company
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 09-01-PLAN.md — API: leads search/filter, CSV export, stats endpoint, customer estimate email
 - [ ] 09-02-PLAN.md — Admin UI: lead list page, stats dashboard panel, new tabs on company edit
@@ -90,5 +90,5 @@ Plans:
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 7. Lead Email Integration | v1.1 | 1/1 | Complete | 2026-03-16 |
 | 8. Security Foundation & Tech Debt | v2.0 | 2/2 | Complete | 2026-03-25 |
-| 9. Lead Management & Analytics | v2.0 | 0/2 | Not started | - |
+| 9. Lead Management & Analytics | 1/2 | In Progress|  | - |
 | 10. Admin & Widget Polish | v2.0 | 0/? | Not started | - |

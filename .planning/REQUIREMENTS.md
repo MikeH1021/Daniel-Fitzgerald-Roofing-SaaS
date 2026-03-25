@@ -9,9 +9,9 @@ Requirements for v2.0 Admin Platform & Lead Management. Each maps to roadmap pha
 
 ### Lead Management
 
-- [ ] **LEAD-01**: Admin can view list of leads per company with search and date filtering
-- [ ] **LEAD-02**: Admin can export leads as CSV per company
-- [ ] **LEAD-03**: Customer receives PDF or email copy of their estimate after submission
+- [x] **LEAD-01**: Admin can view list of leads per company with search and date filtering
+- [x] **LEAD-02**: Admin can export leads as CSV per company
+- [x] **LEAD-03**: Customer receives PDF or email copy of their estimate after submission
 
 ### Auth & Security
 
@@ -31,7 +31,7 @@ Requirements for v2.0 Admin Platform & Lead Management. Each maps to roadmap pha
 
 ### Analytics
 
-- [ ] **STATS-01**: Admin sees per-company dashboard with total estimates, total leads, popular materials, and average sqft
+- [x] **STATS-01**: Admin sees per-company dashboard with total estimates, total leads, popular materials, and average sqft
 
 ### Widget UX
 
@@ -76,9 +76,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LEAD-01 | Phase 9 | Pending |
-| LEAD-02 | Phase 9 | Pending |
-| LEAD-03 | Phase 9 | Pending |
+| LEAD-01 | Phase 9 | Complete |
+| LEAD-02 | Phase 9 | Complete |
+| LEAD-03 | Phase 9 | Complete |
 | AUTH-01 | Phase 8 | Complete |
 | AUTH-02 | Phase 8 | Complete |
 | AUTH-03 | Phase 8 | Complete |
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-01 | Phase 10 | Pending |
 | COMP-02 | Phase 10 | Pending |
 | PRICE-01 | Phase 10 | Pending |
-| STATS-01 | Phase 9 | Pending |
+| STATS-01 | Phase 9 | Complete |
 | WID-01 | Phase 10 | Pending |
 | WID-02 | Phase 10 | Pending |
 | DEBT-01 | Phase 8 | Complete |
