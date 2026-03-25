@@ -35,8 +35,8 @@ Requirements for v2.0 Admin Platform & Lead Management. Each maps to roadmap pha
 
 ### Widget UX
 
-- [ ] **WID-01**: User can go back and edit roof details after viewing estimate without re-entering contact info
-- [ ] **WID-02**: Widget shows specific error messages from API (rate limit, validation errors) instead of generic failure text
+- [x] **WID-01**: User can go back and edit roof details after viewing estimate without re-entering contact info
+- [x] **WID-02**: Widget shows specific error messages from API (rate limit, validation errors) instead of generic failure text
 
 ### Tech Debt
 
@@ -87,8 +87,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-02 | Phase 10 | Pending |
 | PRICE-01 | Phase 10 | Pending |
 | STATS-01 | Phase 9 | Complete |
-| WID-01 | Phase 10 | Pending |
-| WID-02 | Phase 10 | Pending |
+| WID-01 | Phase 10 | Complete |
+| WID-02 | Phase 10 | Complete |
 | DEBT-01 | Phase 8 | Complete |
 | DEBT-02 | Phase 8 | Complete |
 | DEBT-03 | Phase 8 | Complete |

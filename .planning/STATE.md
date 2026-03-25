@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Admin Platform & Lead Management
 status: executing
-stopped_at: Completed 09-02-PLAN.md (Lead Management UI)
-last_updated: "2026-03-25T00:46:24.990Z"
+stopped_at: Completed 10-03-PLAN.md (Widget UX - Back Navigation and Error Messages)
+last_updated: "2026-03-25T00:58:30.603Z"
 last_activity: "2026-03-25 — 09-01 complete: leads search/filter, CSV export, stats endpoint, customer estimate email"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
   percent: 15
 ---
 
@@ -55,6 +55,9 @@ Recent decisions relevant to v2.0:
 - [Phase 09-lead-management-analytics]: CSV export filename uses companyId for disambiguation across multiple companies
 - [Phase 09-lead-management-analytics]: Lead/LeadsResponse/Stats interfaces defined in api.ts alongside api object for co-location
 - [Phase 09-lead-management-analytics]: Export filename includes companyId for disambiguation when admins manage multiple companies
+- [Phase 10]: goToStep() sets currentStep without touching formData so contact info survives roof detail edits
+- [Phase 10]: estimateResult cleared on Edit Roof Details to force re-submission after edits
+- [Phase 10]: Error body parsed before status-based fallback so API-provided messages take precedence
 
 ### Pending Todos
 
@@ -66,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T00:42:50.879Z
-Stopped at: Completed 09-02-PLAN.md (Lead Management UI)
+Last session: 2026-03-25T00:58:30.599Z
+Stopped at: Completed 10-03-PLAN.md (Widget UX - Back Navigation and Error Messages)
 Resume file: None
