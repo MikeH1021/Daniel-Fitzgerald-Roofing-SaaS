@@ -14,6 +14,58 @@ function useDebouncedCallback<T extends (...args: never[]) => void>(fn: T, delay
   }, [delay]) as T;
 }
 
+function WidgetPreview({ logoUrl, primaryColor }: { logoUrl: string | null; primaryColor: string }) {
+  return (
+    <div class="widget-preview">
+      {/* Header bar with brand color */}
+      <div
+        class="widget-preview-header"
+        style={{ background: primaryColor }}
+      >
+        {logoUrl ? (
+          <img src={logoUrl} alt="Company logo" style={{ maxHeight: '32px', maxWidth: '120px', objectFit: 'contain' }} />
+        ) : (
+          <span style={{ color: '#fff', fontWeight: 600, fontSize: '15px', opacity: 0.9 }}>Your Logo</span>
+        )}
+      </div>
+
+      {/* Step indicator */}
+      <div class="widget-preview-body">
+        <div class="widget-preview-pips">
+          <span class="widget-preview-pip widget-preview-pip--active" style={{ background: primaryColor }} />
+          <span class="widget-preview-pip" />
+          <span class="widget-preview-pip" />
+        </div>
+
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ fontSize: '17px', fontWeight: 700, color: '#1c1917', marginBottom: '4px' }}>Get Your Roof Estimate</div>
+          <div style={{ fontSize: '13px', color: '#78716c' }}>Tell us about your roof</div>
+        </div>
+
+        {/* Mock form fields */}
+        <div class="widget-preview-field">
+          <div class="widget-preview-input-label">Roof Size (sq ft)</div>
+          <div class="widget-preview-input" />
+        </div>
+        <div class="widget-preview-field">
+          <div class="widget-preview-input-label">Roof Pitch</div>
+          <div class="widget-preview-input widget-preview-input--select">
+            <span style={{ color: '#a8a29e', fontSize: '13px' }}>Select pitch...</span>
+          </div>
+        </div>
+
+        {/* Mock CTA button */}
+        <div
+          class="widget-preview-btn"
+          style={{ background: primaryColor }}
+        >
+          Continue
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BrandingSettings({ companyId }: { companyId?: string }) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState('#2563eb');
@@ -159,6 +211,24 @@ export function BrandingSettings({ companyId }: { companyId?: string }) {
           </div>
           <span class="color-hex">{primaryColor.toUpperCase()}</span>
         </div>
+      </div>
+
+      {/* Live Widget Preview */}
+      <div class="card stagger-3">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="4" width="16" height="12" rx="2" />
+              <path d="M8 15v2M12 15v2M6 17h8" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Widget Preview</h3>
+            <p class="card-description">Live preview of your calculator widget</p>
+          </div>
+        </div>
+
+        <WidgetPreview logoUrl={logoUrl} primaryColor={primaryColor} />
       </div>
 
       {status && (
