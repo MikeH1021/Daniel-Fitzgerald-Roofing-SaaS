@@ -18,21 +18,26 @@ export async function createSession(db: Db, companyId: string): Promise<string> 
   return token;
 }
 
-export async function validateSession(db: Db, token: string): Promise<string | null> {
+export async function validateSession(db: Db, token: string): Promise<{ companyId: string; role: string } | null> {
   const now = new Date().toISOString();
 
   // Clean up expired sessions
   await db.delete(schema.adminSessions).where(lt(schema.adminSessions.expiresAt, now));
 
   const rows = await db
-    .select({ companyId: schema.adminSessions.companyId, expiresAt: schema.adminSessions.expiresAt })
+    .select({
+      companyId: schema.adminSessions.companyId,
+      expiresAt: schema.adminSessions.expiresAt,
+      role: schema.companies.role,
+    })
     .from(schema.adminSessions)
+    .innerJoin(schema.companies, eq(schema.adminSessions.companyId, schema.companies.id))
     .where(eq(schema.adminSessions.id, token))
     .limit(1);
 
   if (rows.length === 0) return null;
   if (rows[0].expiresAt < now) return null;
-  return rows[0].companyId;
+  return { companyId: rows[0].companyId, role: rows[0].role };
 }
 
 export async function deleteSession(db: Db, token: string): Promise<void> {

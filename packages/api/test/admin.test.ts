@@ -9,8 +9,13 @@ async function seedAdminData(db: D1Database) {
   await db.exec("CREATE TABLE IF NOT EXISTS pricing_overrides (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, material_key text NOT NULL, cost_low real, cost_high real, pitch_flat real, pitch_low real, pitch_medium real, pitch_steep real, FOREIGN KEY (company_id) REFERENCES companies(id));");
 }
 
-/** Helper to setup a password and login, returning the session cookie */
+let _setupLoginIpCounter = 100;
+
+/** Helper to setup a password and login, returning the session cookie.
+ * Uses a unique IP per call to avoid rate limiter interference across test suites.
+ */
 async function setupAndLogin(email: string, password: string): Promise<string> {
+  const ip = `10.0.0.${_setupLoginIpCounter++}`;
   await app.request('/api/admin/setup', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
@@ -20,7 +25,7 @@ async function setupAndLogin(email: string, password: string): Promise<string> {
   const loginRes = await app.request('/api/admin/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
   }, env);
   const setCookieHeader = loginRes.headers.get('set-cookie') || '';
   const match = setCookieHeader.match(/session=([^;]+)/);
@@ -167,12 +172,13 @@ describe('PATCH /api/admin/settings', () => {
   });
 
   it('updates primary color with valid hex', async () => {
-    const res = await app.request('/api/admin/settings', {
+    const res = await app.request('http://localhost/api/admin/settings', {
       method: 'PATCH',
       body: JSON.stringify({ primaryColor: '#ff5500' }),
       headers: {
         'Content-Type': 'application/json',
         Cookie: `session=${sessionCookie}`,
+        Origin: 'http://localhost',
       },
     }, env);
     expect(res.status).toBe(200);
@@ -181,12 +187,13 @@ describe('PATCH /api/admin/settings', () => {
   });
 
   it('rejects invalid hex color', async () => {
-    const res = await app.request('/api/admin/settings', {
+    const res = await app.request('http://localhost/api/admin/settings', {
       method: 'PATCH',
       body: JSON.stringify({ primaryColor: 'notacolor' }),
       headers: {
         'Content-Type': 'application/json',
         Cookie: `session=${sessionCookie}`,
+        Origin: 'http://localhost',
       },
     }, env);
     expect(res.status).toBe(400);
@@ -201,12 +208,13 @@ describe('GET /api/admin/settings - returns updated values', () => {
     await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('settings-company', 'Settings Co', 'settings@test.com', '#2563eb');");
     sessionCookie = await setupAndLogin('settings@test.com', 'SettingsPass1!');
     // Apply the PATCH so GET can verify
-    await app.request('/api/admin/settings', {
+    await app.request('http://localhost/api/admin/settings', {
       method: 'PATCH',
       body: JSON.stringify({ primaryColor: '#ff5500' }),
       headers: {
         'Content-Type': 'application/json',
         Cookie: `session=${sessionCookie}`,
+        Origin: 'http://localhost',
       },
     }, env);
   });
@@ -237,12 +245,13 @@ describe('PUT /api/admin/pricing', () => {
       { materialKey: 'architectural', costLow: 5.0, costHigh: 7.0 },
       { materialKey: '3-tab', costLow: 3.0, costHigh: 4.5, pitchSteep: 1.4 },
     ];
-    const res = await app.request('/api/admin/pricing', {
+    const res = await app.request('http://localhost/api/admin/pricing', {
       method: 'PUT',
       body: JSON.stringify(overrides),
       headers: {
         'Content-Type': 'application/json',
         Cookie: `session=${sessionCookie}`,
+        Origin: 'http://localhost',
       },
     }, env);
     expect(res.status).toBe(200);
@@ -264,12 +273,13 @@ describe('GET /api/admin/pricing - returns current overrides', () => {
       { materialKey: 'architectural', costLow: 5.0, costHigh: 7.0 },
       { materialKey: '3-tab', costLow: 3.0, costHigh: 4.5, pitchSteep: 1.4 },
     ];
-    await app.request('/api/admin/pricing', {
+    await app.request('http://localhost/api/admin/pricing', {
       method: 'PUT',
       body: JSON.stringify(overrides),
       headers: {
         'Content-Type': 'application/json',
         Cookie: `session=${sessionCookie}`,
+        Origin: 'http://localhost',
       },
     }, env);
   });
@@ -320,9 +330,9 @@ describe('POST /api/admin/logout', () => {
   });
 
   it('clears session and returns success', async () => {
-    const res = await app.request('/api/admin/logout', {
+    const res = await app.request('http://localhost/api/admin/logout', {
       method: 'POST',
-      headers: { Cookie: `session=${sessionCookie}` },
+      headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(200);
     const body = await res.json() as { success: boolean };
@@ -355,10 +365,10 @@ describe('POST /api/admin/logo', () => {
     const formData = new FormData();
     formData.append('logo', file);
 
-    const res = await app.request('/api/admin/logo', {
+    const res = await app.request('http://localhost/api/admin/logo', {
       method: 'POST',
       body: formData,
-      headers: { Cookie: `session=${sessionCookie}` },
+      headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(200);
     const body = await res.json() as { logoUrl: string };
@@ -371,10 +381,10 @@ describe('POST /api/admin/logo', () => {
     const formData = new FormData();
     formData.append('logo', file);
 
-    const res = await app.request('/api/admin/logo', {
+    const res = await app.request('http://localhost/api/admin/logo', {
       method: 'POST',
       body: formData,
-      headers: { Cookie: `session=${sessionCookie}` },
+      headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
@@ -386,10 +396,10 @@ describe('POST /api/admin/logo', () => {
     const formData = new FormData();
     formData.append('logo', file);
 
-    const res = await app.request('/api/admin/logo', {
+    const res = await app.request('http://localhost/api/admin/logo', {
       method: 'POST',
       body: formData,
-      headers: { Cookie: `session=${sessionCookie}` },
+      headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
@@ -416,10 +426,10 @@ describe('GET /api/logos/:companyId', () => {
     const file = new File([pngBytes], 'logo.png', { type: 'image/png' });
     const formData = new FormData();
     formData.append('logo', file);
-    await app.request('/api/admin/logo', {
+    await app.request('http://localhost/api/admin/logo', {
       method: 'POST',
       body: formData,
-      headers: { Cookie: `session=${sessionCookie}` },
+      headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
   });
 
@@ -449,9 +459,9 @@ describe('POST /api/admin/logout - session invalidated', () => {
     await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('logout-company', 'Logout Co', 'logout@test.com', '#2563eb');");
     sessionCookie = await setupAndLogin('logout@test.com', 'LogoutPass1!');
     // Perform logout in beforeAll so the session is gone
-    await app.request('/api/admin/logout', {
+    await app.request('http://localhost/api/admin/logout', {
       method: 'POST',
-      headers: { Cookie: `session=${sessionCookie}` },
+      headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
   });
 

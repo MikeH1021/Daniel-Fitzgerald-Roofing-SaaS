@@ -4,9 +4,11 @@ export const companies = sqliteTable('companies', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull(),
+  slug: text('slug'),
   passwordHash: text('password_hash'),
   logoUrl: text('logo_url'),
   primaryColor: text('primary_color').default('#2563eb'),
+  role: text('role').default('company-admin').notNull(),
   createdAt: text('created_at').default("(datetime('now'))"),
   updatedAt: text('updated_at').default("(datetime('now'))"),
 });

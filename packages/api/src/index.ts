@@ -5,6 +5,7 @@ import { estimates } from './routes/estimates';
 import { config } from './routes/config';
 import { admin } from './routes/admin';
 import { maps } from './routes/maps';
+import { companiesRoute } from './routes/companies';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -21,6 +22,7 @@ app.route('/api/estimates', estimates);
 app.route('/api/config', config);
 app.route('/api/admin', admin);
 app.route('/api/maps', maps);
+app.route('/api/companies', companiesRoute);
 
 // Public logo serving route
 app.get('/api/logos/:companyId', async (c) => {

@@ -3,6 +3,7 @@ export type Bindings = {
   RESEND_API_KEY: string;
   RESEND_FROM_EMAIL: string;
   ESTIMATE_RATE_LIMITER?: RateLimit;
+  LOGIN_RATE_LIMITER?: RateLimit;
   LOGOS_BUCKET: R2Bucket;
   API_BASE_URL?: string;
   GOOGLE_MAPS_API_KEY?: string;
