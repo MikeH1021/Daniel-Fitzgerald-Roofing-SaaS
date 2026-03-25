@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Admin Platform & Lead Management
 status: executing
-stopped_at: Completed 10-01-PLAN.md (Archive/Restore & Pricing Validation)
-last_updated: "2026-03-25T01:02:05.987Z"
+stopped_at: Completed 10-02-PLAN.md (Archive/Restore UI, Widget Preview, Pricing Validation)
+last_updated: "2026-03-25T01:07:05.146Z"
 last_activity: "2026-03-25 — 09-01 complete: leads search/filter, CSV export, stats endpoint, customer estimate email"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 15
 ---
 
@@ -61,6 +61,8 @@ Recent decisions relevant to v2.0:
 - [Phase 10-admin-widget-polish]: Archive uses archivedAt nullable timestamp (soft-delete), not a boolean flag
 - [Phase 10-admin-widget-polish]: GET /companies default excludes archived; opt-in via ?includeArchived=true
 - [Phase 10-admin-widget-polish]: Pricing validation: costLow < costHigh refine, nonnegative(), max(100) for costs, max(5) for pitch
+- [Phase 10-admin-widget-polish]: WidgetPreview renders inline mock (no iframe) — avoids cross-origin issues in dev and heavy widget asset loading
+- [Phase 10-admin-widget-polish]: validatePricing() pure function returns Record<string, string> keyed by materialKey-field; inline per-cell errors without a form library
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T01:02:05.982Z
-Stopped at: Completed 10-01-PLAN.md (Archive/Restore & Pricing Validation)
+Last session: 2026-03-25T01:07:00.533Z
+Stopped at: Completed 10-02-PLAN.md (Archive/Restore UI, Widget Preview, Pricing Validation)
 Resume file: None

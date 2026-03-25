@@ -33,7 +33,7 @@
 
 - [x] **Phase 8: Security Foundation & Tech Debt** — RBAC, auth hardening, legacy cleanup, and DB performance groundwork (completed 2026-03-25)
 - [x] **Phase 9: Lead Management & Analytics** — Lead list, CSV export, estimate delivery to customer, and per-company stats (completed 2026-03-25)
-- [ ] **Phase 10: Admin & Widget Polish** — Company archiving, live branding preview, pricing validation, and widget UX fixes
+- [x] **Phase 10: Admin & Widget Polish** — Company archiving, live branding preview, pricing validation, and widget UX fixes (completed 2026-03-25)
 
 ## Phase Details
 
@@ -76,7 +76,7 @@ Plans:
   3. Pricing form rejects inputs where cost_low >= cost_high, any negative values, or values outside sensible ranges, with clear error messages
   4. A homeowner who reaches the estimate screen can click back to edit roof details and their contact info is still filled in when they return
   5. When the API returns a rate limit or validation error, the widget displays a specific, human-readable message instead of a generic failure
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 10-01-PLAN.md — API: company archive/restore endpoints and pricing input validation
 - [ ] 10-02-PLAN.md — Admin UI: archive/restore controls, live branding preview, pricing validation UI
@@ -95,4 +95,4 @@ Plans:
 | 7. Lead Email Integration | v1.1 | 1/1 | Complete | 2026-03-16 |
 | 8. Security Foundation & Tech Debt | v2.0 | 2/2 | Complete | 2026-03-25 |
 | 9. Lead Management & Analytics | v2.0 | 2/2 | Complete | 2026-03-25 |
-| 10. Admin & Widget Polish | 2/3 | In Progress|  | - |
+| 10. Admin & Widget Polish | 3/3 | Complete   | 2026-03-25 | - |
