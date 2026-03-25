@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { env } from 'cloudflare:test';
 import app from '../src/index';
+import { buildCustomerEstimateHtml } from '../src/email/customer-estimate-template';
 
 // Seed test data into D1 before tests
 async function seedTestData(db: D1Database) {
@@ -308,5 +309,94 @@ describe('POST /api/estimates - lead address storage', () => {
     const leads = await env.DB.prepare('SELECT address FROM leads WHERE email = ?').bind('bob@example.com').all();
     expect(leads.results.length).toBe(1);
     expect((leads.results[0] as any).address).toBeNull();
+  });
+});
+
+// ============================================================
+// Task 2 (09-01): Customer estimate email template tests
+// ============================================================
+
+describe('buildCustomerEstimateHtml', () => {
+  it('returns HTML containing customer first name', () => {
+    const html = buildCustomerEstimateHtml({
+      companyName: 'Acme Roofing',
+      firstName: 'John',
+      sqft: 2000,
+      pitch: 'medium',
+      material: 'architectural',
+      estimateLow: 8000,
+      estimateHigh: 11000,
+    });
+    expect(html).toContain('John');
+  });
+
+  it('returns HTML containing the estimate range', () => {
+    const html = buildCustomerEstimateHtml({
+      companyName: 'Acme Roofing',
+      firstName: 'John',
+      sqft: 2000,
+      pitch: 'medium',
+      material: 'architectural',
+      estimateLow: 8000,
+      estimateHigh: 11000,
+    });
+    // Should contain formatted numbers
+    expect(html).toContain('8,000');
+    expect(html).toContain('11,000');
+  });
+
+  it('returns HTML containing company name', () => {
+    const html = buildCustomerEstimateHtml({
+      companyName: 'Acme Roofing',
+      firstName: 'Jane',
+      sqft: 1500,
+      pitch: 'flat',
+      material: '3-tab',
+      estimateLow: 5000,
+      estimateHigh: 7000,
+    });
+    expect(html).toContain('Acme Roofing');
+  });
+
+  it('includes disclaimer text about estimate being approximate', () => {
+    const html = buildCustomerEstimateHtml({
+      companyName: 'Best Roofs',
+      firstName: 'Alice',
+      sqft: 1800,
+      pitch: 'steep',
+      material: 'standing-seam-metal',
+      estimateLow: 9000,
+      estimateHigh: 13000,
+    });
+    expect(html.toLowerCase()).toContain('estimate only');
+  });
+
+  it('includes roof details (sqft, pitch, material)', () => {
+    const html = buildCustomerEstimateHtml({
+      companyName: 'Acme Roofing',
+      firstName: 'Bob',
+      sqft: 2500,
+      pitch: 'medium',
+      material: 'architectural',
+      estimateLow: 9000,
+      estimateHigh: 12000,
+    });
+    expect(html).toContain('2500');
+    expect(html).toContain('medium');
+    expect(html).toContain('architectural');
+  });
+
+  it('includes optional address when provided', () => {
+    const html = buildCustomerEstimateHtml({
+      companyName: 'Acme Roofing',
+      firstName: 'Carol',
+      sqft: 1800,
+      pitch: 'low',
+      material: '3-tab',
+      estimateLow: 6000,
+      estimateHigh: 8000,
+      address: '123 Elm Street',
+    });
+    expect(html).toContain('123 Elm Street');
   });
 });
