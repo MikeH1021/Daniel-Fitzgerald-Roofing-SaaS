@@ -87,6 +87,52 @@
 
 ---
 
+## Milestone: v2.0 — Admin Platform & Lead Management
+
+**Shipped:** 2026-03-25
+**Phases:** 3 | **Plans:** 7
+
+### What Was Built
+- RBAC with super-admin/company-admin roles enforced at API layer via middleware guards
+- CSRF protection (Origin header + token fallback), login rate limiting (5/60s), session expiry redirect
+- Lead management: searchable/filterable list, CSV export, per-company stats dashboard
+- Customer estimate email delivery via Resend + waitUntil pattern
+- Company archive/restore with soft-delete (archivedAt timestamp)
+- Live widget preview in branding editor (reactive to color and logo changes)
+- Pricing validation (client + server): low < high, non-negative, sensible range limits
+- Widget back-navigation preserving contact info, specific API error messages
+
+### What Worked
+- Wave-based parallel execution: Phase 10 Wave 1 ran 10-01 and 10-03 simultaneously with zero file conflicts
+- Existing patterns (waitUntil for email, Drizzle for queries, Preact signals) made v2.0 features straightforward extensions
+- Verifier agent caught all 34 must-haves across 3 phases with zero false negatives
+- Phase 8 security foundation cleanly enabled Phase 9/10 — dependency ordering was correct
+- Code-level checkpoint verification (build + test + grep) was sufficient for UI checkpoints
+
+### What Was Inefficient
+- Continuation agents for checkpoint resolution added overhead — the original agent had already done the work, continuation just wrote SUMMARY.md
+- ROADMAP.md plan checkbox sync issue persists (Phase 9/10 plan checkboxes showed [ ] despite having summaries)
+
+### Patterns Established
+- `superAdminOnly` and `companyAccessGuard` middleware pattern for RBAC
+- CSRF via Origin header match with X-CSRF-Token fallback (first 16 chars of session token)
+- In-memory Map fallback for Cloudflare Workers RateLimit binding (enables testing)
+- Inline widget preview component for admin settings (avoids iframe cross-origin issues)
+- `validatePricing()` pure function called on every field change for instant feedback
+
+### Key Lessons
+1. RBAC is best enforced via middleware, not route-level checks — fewer places to miss
+2. Soft-delete with timestamp (`archivedAt`) is better than boolean — tracks when, enables audit
+3. Stats endpoints should use SQL aggregation, not client-side computation — scales with data
+4. Checkpoint verification can be automated via build + test + code grep when UI is deterministic
+
+### Cost Observations
+- Model mix: sonnet for execution/verification, inherit for planning
+- Sessions: 1 session covering all 3 phases (plan + execute for each)
+- Notable: Entire milestone (3 phases, 7 plans) completed in a single conversation
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -95,6 +141,7 @@
 |-----------|---------------|--------|------------|
 | v1.0 | 26 min | 4 | Initial project, TDD throughout |
 | v1.1 | ~38 min | 3 | CDN integration, research-driven planning |
+| v2.0 | ~1 session | 3 | Parallel waves, RBAC + lead management |
 
 ### Cumulative Quality
 
@@ -102,6 +149,7 @@
 |-----------|-------|----------|-----|
 | v1.0 | 63 | 3 (api, widget, admin) | 3,522 |
 | v1.1 | ~95 | 3 (api, widget, admin) | 5,254 |
+| v2.0 | 120 | 3 (api, widget, admin) | 10,400 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -109,3 +157,5 @@
 2. Shadow DOM + CSS custom properties is the right pattern for embeddable widgets
 3. Research phase pays for itself — catching deprecated APIs before planning prevents rework
 4. ROADMAP.md checkbox sync is a recurring issue — needs tooling fix
+5. Wave-based parallel execution with zero-overlap file lists works reliably
+6. Middleware-based auth (RBAC, CSRF, rate limiting) is cleaner than per-route checks
