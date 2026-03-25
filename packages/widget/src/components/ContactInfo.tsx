@@ -58,85 +58,50 @@ export function ContactInfo({ companyName, companyId }: { companyName: string; c
 
   return (
     <div>
-      <div class="rc-step-title">Your Contact Information</div>
-
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }} aria-hidden="true">
-        <input
-          type="text"
-          name="website"
-          tabIndex={-1}
-          autoComplete="off"
-          value=""
-        />
+        <input type="text" name="website" tabIndex={-1} autoComplete="off" value="" />
+      </div>
+
+      <div class="rc-name-row">
+        <div class="rc-field">
+          <label class="rc-label" for="rc-fname">First Name</label>
+          <input id="rc-fname" type="text" class="rc-input" placeholder="John" value={data.firstName} onInput={(e) => updateField('firstName', (e.target as HTMLInputElement).value)} />
+          {fieldErrors.firstName && <div class="rc-error">{fieldErrors.firstName}</div>}
+        </div>
+        <div class="rc-field">
+          <label class="rc-label" for="rc-lname">Last Name</label>
+          <input id="rc-lname" type="text" class="rc-input" placeholder="Smith" value={data.lastName} onInput={(e) => updateField('lastName', (e.target as HTMLInputElement).value)} />
+          {fieldErrors.lastName && <div class="rc-error">{fieldErrors.lastName}</div>}
+        </div>
       </div>
 
       <div class="rc-field">
-        <input
-          type="text"
-          class="rc-input"
-          placeholder="First Name"
-          value={data.firstName}
-          onInput={(e) => updateField('firstName', (e.target as HTMLInputElement).value)}
-        />
-        {fieldErrors.firstName && <div class="rc-error">{fieldErrors.firstName}</div>}
-      </div>
-
-      <div class="rc-field">
-        <input
-          type="text"
-          class="rc-input"
-          placeholder="Last Name"
-          value={data.lastName}
-          onInput={(e) => updateField('lastName', (e.target as HTMLInputElement).value)}
-        />
-        {fieldErrors.lastName && <div class="rc-error">{fieldErrors.lastName}</div>}
-      </div>
-
-      <div class="rc-field">
-        <input
-          type="email"
-          class="rc-input"
-          placeholder="Email Address"
-          value={data.email}
-          onInput={(e) => updateField('email', (e.target as HTMLInputElement).value)}
-        />
+        <label class="rc-label" for="rc-email">Email Address</label>
+        <input id="rc-email" type="email" class="rc-input" placeholder="john@example.com" value={data.email} onInput={(e) => updateField('email', (e.target as HTMLInputElement).value)} />
         {fieldErrors.email && <div class="rc-error">{fieldErrors.email}</div>}
       </div>
 
       <div class="rc-field">
-        <input
-          type="tel"
-          class="rc-input"
-          placeholder="Phone Number"
-          value={data.phone}
-          onInput={(e) => updateField('phone', (e.target as HTMLInputElement).value)}
-        />
+        <label class="rc-label" for="rc-phone">Phone Number</label>
+        <input id="rc-phone" type="tel" class="rc-input" placeholder="(555) 123-4567" value={data.phone} onInput={(e) => updateField('phone', (e.target as HTMLInputElement).value)} />
         {fieldErrors.phone && <div class="rc-error">{fieldErrors.phone}</div>}
       </div>
 
-      <div class="rc-field rc-consent">
-        <label class="rc-consent-label">
-          <input
-            type="checkbox"
-            checked={data.consent}
-            onChange={(e) => updateField('consent', (e.target as HTMLInputElement).checked)}
-          />
-          <span>
-            I consent to receive communications from <strong>{companyName}</strong> regarding my
-            roofing estimate. I understand that consent is not a condition of purchase.
-          </span>
-        </label>
-        {fieldErrors.consent && <div class="rc-error">{fieldErrors.consent}</div>}
-      </div>
+      <label class="rc-consent-label">
+        <input type="checkbox" checked={data.consent} onChange={(e) => updateField('consent', (e.target as HTMLInputElement).checked)} />
+        <span>
+          I consent to receive communications from <strong>{companyName}</strong> regarding my
+          roofing estimate. I understand that consent is not a condition of purchase.
+        </span>
+      </label>
+      {fieldErrors.consent && <div class="rc-error">{fieldErrors.consent}</div>}
 
-      {submitError.value && <div class="rc-error">{submitError.value}</div>}
+      {submitError.value && <div class="rc-error" style={{ marginTop: '8px', marginBottom: '8px' }}>{submitError.value}</div>}
 
       <div class="rc-btn-row">
-        <button class="rc-btn-secondary" onClick={prevStep}>
-          Back
-        </button>
+        <button class="rc-btn-secondary" onClick={prevStep}>Back</button>
         <button class="rc-btn-primary" onClick={handleSubmit} disabled={isLoading.value}>
-          {isLoading.value ? 'Submitting...' : 'Get My Estimate'}
+          {isLoading.value ? 'Getting Estimate\u2026' : 'Get My Estimate'}
         </button>
       </div>
     </div>

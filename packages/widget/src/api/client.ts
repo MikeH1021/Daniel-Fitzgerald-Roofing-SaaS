@@ -26,7 +26,16 @@ export async function fetchCompanyConfig(companyId: string): Promise<{
   primaryColor: string;
 }> {
   const res = await fetch(`${apiBase}/api/config/${companyId}`);
-  if (!res.ok) throw new Error('Failed to load company config');
+  if (!res.ok) {
+    let message = 'Failed to load company config';
+    try {
+      const body = await res.json();
+      if (body.error) message = body.error;
+    } catch {
+      // Use default message if body is not JSON
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 
@@ -60,6 +69,25 @@ export async function submitEstimate(data: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to submit estimate');
+  if (!res.ok) {
+    let message = 'Something went wrong. Please try again.';
+    try {
+      const body = await res.json();
+      if (body.error) {
+        message = body.error;
+      }
+      if (body.details && Array.isArray(body.details)) {
+        message = body.details.map((d: { field: string; message: string }) => d.message).join('. ');
+      }
+    } catch {
+      // If response body is not JSON, use status-based message
+      if (res.status === 429) {
+        message = 'Too many requests. Please try again later.';
+      } else if (res.status >= 500) {
+        message = 'Server error. Please try again later.';
+      }
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
