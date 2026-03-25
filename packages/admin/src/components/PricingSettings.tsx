@@ -28,11 +28,46 @@ function emptyRow(materialKey: string): PricingRow {
   return { materialKey, costLow: null, costHigh: null, pitchFlat: null, pitchLow: null, pitchMedium: null, pitchSteep: null };
 }
 
+function validatePricing(rows: PricingRow[]): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const row of rows) {
+    const k = row.materialKey;
+    // Cost validations
+    if (row.costLow !== null && row.costLow < 0) {
+      errors[`${k}-costLow`] = 'Must be a positive value';
+    }
+    if (row.costHigh !== null && row.costHigh < 0) {
+      errors[`${k}-costHigh`] = 'Must be a positive value';
+    }
+    if (row.costLow !== null && row.costHigh !== null && row.costLow >= row.costHigh) {
+      errors[`${k}-costLow`] = 'Low must be less than high';
+    }
+    if (row.costLow !== null && row.costLow > 100) {
+      errors[`${k}-costLow`] = 'Must be under $100/sqft';
+    }
+    if (row.costHigh !== null && row.costHigh > 100) {
+      errors[`${k}-costHigh`] = 'Must be under $100/sqft';
+    }
+    // Pitch multiplier validations
+    for (const p of PITCH_FIELDS) {
+      const val = row[p.key];
+      if (val !== null && val < 0) {
+        errors[`${k}-${p.key}`] = 'Must be a positive value';
+      }
+      if (val !== null && val > 5.0) {
+        errors[`${k}-${p.key}`] = 'Must be under 5.0';
+      }
+    }
+  }
+  return errors;
+}
+
 export function PricingSettings({ companyId }: { companyId?: string }) {
   const [rows, setRows] = useState<PricingRow[]>(MATERIALS.map((m) => emptyRow(m.key)));
   const [status, setStatus] = useState('');
   const [statusType, setStatusType] = useState<'success' | 'error' | 'info'>('success');
   const [loading, setLoading] = useState(true);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const statusTimer = useRef<ReturnType<typeof setTimeout>>();
   const mountedRef = useRef(true);
 
@@ -60,11 +95,25 @@ export function PricingSettings({ companyId }: { companyId?: string }) {
       const next = [...prev];
       const numVal = value === '' ? null : parseFloat(value);
       next[idx] = { ...next[idx], [field]: numVal };
+      // Re-validate on every change
+      setValidationErrors(validatePricing(next));
       return next;
     });
   };
 
   const handleSave = async () => {
+    const errors = validatePricing(rows);
+    setValidationErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setStatus('Please fix validation errors');
+      setStatusType('error');
+      clearTimeout(statusTimer.current);
+      statusTimer.current = setTimeout(() => {
+        if (mountedRef.current) setStatus('');
+      }, 4000);
+      return;
+    }
+
     setStatus('Saving\u2026');
     setStatusType('info');
     try {
@@ -133,9 +182,15 @@ export function PricingSettings({ companyId }: { companyId?: string }) {
                   <td class="material-name">{MATERIALS.find((m) => m.key === row.materialKey)?.label}</td>
                   <td>
                     <input class="input input--number" type="number" step="0.01" value={row.costLow ?? ''} onInput={(e) => updateField(idx, 'costLow', (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} cost low`} />
+                    {validationErrors[`${row.materialKey}-costLow`] && (
+                      <div class="field-error">{validationErrors[`${row.materialKey}-costLow`]}</div>
+                    )}
                   </td>
                   <td>
                     <input class="input input--number" type="number" step="0.01" value={row.costHigh ?? ''} onInput={(e) => updateField(idx, 'costHigh', (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} cost high`} />
+                    {validationErrors[`${row.materialKey}-costHigh`] && (
+                      <div class="field-error">{validationErrors[`${row.materialKey}-costHigh`]}</div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -171,6 +226,9 @@ export function PricingSettings({ companyId }: { companyId?: string }) {
                   {PITCH_FIELDS.map((p) => (
                     <td key={p.key}>
                       <input class="input input--number" type="number" step="0.01" value={row[p.key] ?? ''} onInput={(e) => updateField(idx, p.key, (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} ${p.label} multiplier`} />
+                      {validationErrors[`${row.materialKey}-${p.key}`] && (
+                        <div class="field-error">{validationErrors[`${row.materialKey}-${p.key}`]}</div>
+                      )}
                     </td>
                   ))}
                 </tr>

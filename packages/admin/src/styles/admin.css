@@ -1257,3 +1257,68 @@ a.nav-item {
     padding: 36px 24px;
   }
 }
+
+/* --- Archive/Restore --- */
+.company-archived {
+  opacity: 0.6;
+}
+
+.badge-archived {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--error);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  vertical-align: middle;
+}
+
+.btn-archive {
+  color: var(--slate-400);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-archive:hover {
+  color: var(--error);
+  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(248, 113, 113, 0.05);
+}
+
+/* --- Pricing Validation Errors --- */
+.field-error {
+  color: var(--error, #f87171);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+/* --- Secondary button variant --- */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--slate-300);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--slate-100);
+  border-color: rgba(255, 255, 255, 0.18);
+}

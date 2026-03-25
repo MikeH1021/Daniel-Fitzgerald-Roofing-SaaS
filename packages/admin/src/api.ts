@@ -58,6 +58,7 @@ export interface Company {
   email?: string;
   logoUrl: string | null;
   primaryColor: string;
+  archivedAt?: string | null;
 }
 
 export interface Lead {
@@ -112,8 +113,9 @@ export const api = {
 
   // --- Company CRUD ---
 
-  async listCompanies() {
-    const res = await request('/companies');
+  async listCompanies(opts?: { includeArchived?: boolean }) {
+    const qs = opts?.includeArchived ? '?includeArchived=true' : '';
+    const res = await request(`/companies${qs}`);
     if (!res.ok) throw new Error('Failed to load companies');
     const body = await res.json() as { data?: Company[] } | Company[];
     // Handle paginated response shape { data, total, page, pageSize }
@@ -133,6 +135,24 @@ export const api = {
       throw new Error(body.error || 'Failed to create company');
     }
     return res.json() as Promise<{ id: string; name: string; slug: string }>;
+  },
+
+  async archiveCompany(companyId: string) {
+    const res = await jsonRequest(`/companies/${companyId}/archive`, { method: 'PATCH' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error || 'Failed to archive company');
+    }
+    return res.json() as Promise<{ success: boolean }>;
+  },
+
+  async restoreCompany(companyId: string) {
+    const res = await jsonRequest(`/companies/${companyId}/restore`, { method: 'PATCH' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error || 'Failed to restore company');
+    }
+    return res.json() as Promise<{ success: boolean }>;
   },
 
   async updateCompany(companyId: string, data: { name?: string; slug?: string }) {
