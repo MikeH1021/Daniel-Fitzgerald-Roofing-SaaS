@@ -6,7 +6,7 @@ import { buildCustomerEstimateHtml } from '../src/email/customer-estimate-templa
 // Seed test data into D1 before tests
 async function seedTestData(db: D1Database) {
   // Apply migration schema -- D1 exec requires single statements
-  await db.exec("CREATE TABLE IF NOT EXISTS companies (id text PRIMARY KEY NOT NULL, name text NOT NULL, email text NOT NULL, logo_url text, primary_color text DEFAULT '#2563eb', created_at text DEFAULT (datetime('now')), updated_at text DEFAULT (datetime('now')));");
+  await db.exec("CREATE TABLE IF NOT EXISTS companies (id text PRIMARY KEY NOT NULL, name text NOT NULL, email text NOT NULL, slug text, password_hash text, logo_url text, primary_color text DEFAULT '#2563eb', role text NOT NULL DEFAULT 'company-admin', created_at text DEFAULT (datetime('now')), updated_at text DEFAULT (datetime('now')), archived_at text);");
   await db.exec("CREATE TABLE IF NOT EXISTS pricing_overrides (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, material_key text NOT NULL, cost_low real, cost_high real, pitch_flat real, pitch_low real, pitch_medium real, pitch_steep real, FOREIGN KEY (company_id) REFERENCES companies(id));");
 
   // Insert test company

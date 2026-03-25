@@ -17,7 +17,7 @@ export function ContactInfo({ companyName, companyId }: { companyName: string; c
     if (!data.lastName.trim()) errs.lastName = 'Last name is required';
     if (!data.email.trim()) {
       errs.email = 'Email is required';
-    } else if (!data.email.includes('@')) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
       errs.email = 'Enter a valid email address';
     }
     if (!data.phone.trim()) {
@@ -40,10 +40,10 @@ export function ContactInfo({ companyName, companyId }: { companyName: string; c
         pitch: data.pitch,
         material: data.material,
         companyId,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        email: data.email.trim(),
+        phone: data.phone.trim(),
         consent: data.consent,
         address: selectedPlace.value?.formattedAddress || undefined,
       });

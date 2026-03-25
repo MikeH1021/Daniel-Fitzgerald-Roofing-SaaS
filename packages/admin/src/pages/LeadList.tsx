@@ -20,6 +20,7 @@ export function LeadList({ companyId }: { companyId: string }) {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
 
   // Debounce search input
   function handleSearchInput(value: string) {
@@ -39,6 +40,7 @@ export function LeadList({ companyId }: { companyId: string }) {
 
   useEffect(() => {
     setLoading(true);
+    const id = ++requestIdRef.current;
     api.getLeads(companyId, {
       search: search || undefined,
       from: fromDate || undefined,
@@ -46,10 +48,12 @@ export function LeadList({ companyId }: { companyId: string }) {
       page,
       pageSize: PAGE_SIZE,
     }).then((res) => {
+      if (id !== requestIdRef.current) return; // Stale response, discard
       setLeads(res.data);
       setTotal(res.total);
       setLoading(false);
     }).catch(() => {
+      if (id !== requestIdRef.current) return;
       setLoading(false);
     });
   }, [companyId, search, fromDate, toDate, page]);

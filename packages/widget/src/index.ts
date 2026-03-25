@@ -33,7 +33,9 @@ export function initWidget(script: HTMLScriptElement): void {
 
 // Auto-initialize when loaded as a script tag
 (function () {
-  const script = document.currentScript as HTMLScriptElement | null;
+  const script =
+    (document.currentScript as HTMLScriptElement | null) ||
+    document.getElementById('roofing-widget-script') as HTMLScriptElement | null;
   if (script) {
     initWidget(script);
   }

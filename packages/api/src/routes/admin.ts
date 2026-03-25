@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import { z } from 'zod';
-import { eq, count, desc, like, or, and, gte, lte, sql, avg, isNull } from 'drizzle-orm';
+import { eq, count, desc, like, or, and, gte, lte, sql, avg, isNull, isNotNull } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Bindings } from '../types';
 import type { AdminVars } from '../middleware/auth';
@@ -52,7 +52,7 @@ admin.post('/setup', zValidator('json', setupSchema), async (c) => {
   const db = createDb(c.env.DB);
 
   const rows = await db
-    .select({ id: companies.id, passwordHash: companies.passwordHash })
+    .select({ id: companies.id, passwordHash: companies.passwordHash, role: companies.role })
     .from(companies)
     .where(eq(companies.email, email))
     .limit(1);
@@ -66,7 +66,18 @@ admin.post('/setup', zValidator('json', setupSchema), async (c) => {
   }
 
   const hash = await hashPassword(password);
-  await db.update(companies).set({ passwordHash: hash }).where(eq(companies.id, rows[0].id));
+
+  // Bootstrap: promote to super-admin only if this is the sole company with no existing passwords
+  const [existingAdmins, totalCompanies] = await Promise.all([
+    db.select({ id: companies.id }).from(companies).where(isNotNull(companies.passwordHash)).limit(1),
+    db.select({ count: count() }).from(companies),
+  ]);
+  const updates: Record<string, unknown> = { passwordHash: hash };
+  if (existingAdmins.length === 0 && totalCompanies[0].count === 1) {
+    updates.role = 'super-admin';
+  }
+
+  await db.update(companies).set(updates).where(eq(companies.id, rows[0].id));
 
   return c.json({ success: true });
 });
@@ -81,7 +92,7 @@ admin.post('/login', loginRateLimiter, zValidator('json', loginSchema), async (c
   const db = createDb(c.env.DB);
 
   const rows = await db
-    .select({ id: companies.id, name: companies.name, passwordHash: companies.passwordHash })
+    .select({ id: companies.id, name: companies.name, role: companies.role, passwordHash: companies.passwordHash })
     .from(companies)
     .where(eq(companies.email, email))
     .limit(1);
@@ -105,7 +116,7 @@ admin.post('/login', loginRateLimiter, zValidator('json', loginSchema), async (c
     maxAge: 604800, // 7 days
   });
 
-  return c.json({ companyId: rows[0].id, name: rows[0].name });
+  return c.json({ companyId: rows[0].id, name: rows[0].name, role: rows[0].role });
 });
 
 // --- Protected routes (auth + CSRF middleware) ---
@@ -147,7 +158,8 @@ admin.get('/csrf-token', async (c) => {
 // --- Company CRUD (protected + RBAC) ---
 
 function slugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-');
+  return slug || 'company';
 }
 
 const createCompanySchema = z.object({

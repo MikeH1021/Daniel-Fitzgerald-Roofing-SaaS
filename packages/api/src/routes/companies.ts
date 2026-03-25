@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, count } from 'drizzle-orm';
+import { eq, count, isNull, and } from 'drizzle-orm';
 import { createDb } from '../db';
 import { companies } from '../db/schema';
 import type { Bindings } from '../types';
@@ -22,9 +22,10 @@ companiesRoute.get('/', async (c) => {
         primaryColor: companies.primaryColor,
       })
       .from(companies)
+      .where(isNull(companies.archivedAt))
       .limit(pageSize)
       .offset(offset),
-    db.select({ count: count() }).from(companies),
+    db.select({ count: count() }).from(companies).where(isNull(companies.archivedAt)),
   ]);
   return c.json({ data: rows, total: totalResult[0].count, page, pageSize });
 });
@@ -42,7 +43,7 @@ companiesRoute.get('/by-slug/:slug', async (c) => {
       primaryColor: companies.primaryColor,
     })
     .from(companies)
-    .where(eq(companies.slug, slug))
+    .where(and(eq(companies.slug, slug), isNull(companies.archivedAt)))
     .limit(1);
 
   if (rows.length === 0) {

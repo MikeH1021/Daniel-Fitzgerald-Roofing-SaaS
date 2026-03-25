@@ -3,6 +3,11 @@ import preact from '@preact/preset-vite';
 
 export default defineConfig({
   plugins: [preact()],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8787',
+    },
+  },
   build: {
     lib: {
       entry: 'src/index.ts',

@@ -24,53 +24,57 @@ export function RoofDetails() {
 
   return (
     <div>
-      <div class="rc-step-title">Get Your Roof Estimate</div>
+      <div class="rc-field">
+        <label class="rc-label" for="rc-sqft">Square Footage</label>
+        <input
+          id="rc-sqft"
+          class="rc-input"
+          type="number"
+          min="100"
+          max="10000"
+          placeholder="e.g. 1500"
+          value={data.sqft}
+          onInput={(e) => updateField('sqft', (e.target as HTMLInputElement).value)}
+        />
+      </div>
 
-      <label class="rc-label" for="rc-sqft">Square Footage</label>
-      <input
-        id="rc-sqft"
-        class="rc-input"
-        type="number"
-        min="100"
-        max="10000"
-        placeholder="e.g. 1500"
-        value={data.sqft}
-        onInput={(e) => updateField('sqft', (e.target as HTMLInputElement).value)}
-      />
+      <div class="rc-field">
+        <label class="rc-label" for="rc-pitch">Roof Pitch</label>
+        <select
+          id="rc-pitch"
+          class="rc-select"
+          value={data.pitch}
+          onChange={(e) => updateField('pitch', (e.target as HTMLSelectElement).value)}
+        >
+          <option value="">Select pitch...</option>
+          <option value="flat">Flat (0-2/12)</option>
+          <option value="low">Low (3-4/12)</option>
+          <option value="medium">Medium (5-8/12)</option>
+          <option value="steep">Steep (9-12/12)</option>
+        </select>
+      </div>
 
-      <label class="rc-label" for="rc-pitch">Roof Pitch</label>
-      <select
-        id="rc-pitch"
-        class="rc-select"
-        value={data.pitch}
-        onChange={(e) => updateField('pitch', (e.target as HTMLSelectElement).value)}
-      >
-        <option value="">Select pitch...</option>
-        <option value="flat">Flat</option>
-        <option value="low">Low</option>
-        <option value="medium">Medium</option>
-        <option value="steep">Steep</option>
-      </select>
-
-      <label class="rc-label" for="rc-material">Material</label>
-      <select
-        id="rc-material"
-        class="rc-select"
-        value={data.material}
-        onChange={(e) => updateField('material', (e.target as HTMLSelectElement).value)}
-      >
-        <option value="">Select material...</option>
-        <option value="3-tab">3-Tab Shingles</option>
-        <option value="architectural">Architectural Shingles</option>
-        <option value="standing-seam-metal">Standing Seam Metal</option>
-      </select>
+      <div class="rc-field">
+        <label class="rc-label" for="rc-material">Material</label>
+        <select
+          id="rc-material"
+          class="rc-select"
+          value={data.material}
+          onChange={(e) => updateField('material', (e.target as HTMLSelectElement).value)}
+        >
+          <option value="">Select material...</option>
+          <option value="3-tab">3-Tab Shingles</option>
+          <option value="architectural">Architectural Shingles</option>
+          <option value="standing-seam-metal">Standing Seam Metal</option>
+        </select>
+      </div>
 
       {validationError.value && (
         <div class="rc-error">{validationError.value}</div>
       )}
 
-      <button class="rc-btn-primary" onClick={handleNext}>
-        Next
+      <button class="rc-btn-primary" onClick={handleNext} style={{ marginTop: '4px' }}>
+        Continue
       </button>
     </div>
   );

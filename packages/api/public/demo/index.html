@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roofing Calculator Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Instrument+Serif&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+    .demo-header {
+      text-align: center;
+      margin-bottom: 32px;
+      max-width: 460px;
+      width: 100%;
+    }
+    .demo-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: 42px;
+      font-weight: 400;
+      color: #f1f5f9;
+      margin-bottom: 8px;
+    }
+    .demo-subtitle {
+      font-size: 16px;
+      color: #94a3b8;
+    }
+    .demo-widget {
+      width: 100%;
+      max-width: 460px;
+    }
+    .demo-footer {
+      margin-top: 32px;
+      text-align: center;
+    }
+    .demo-footer a {
+      color: #64748b;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .demo-footer a:hover { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="demo-header">
+    <h1 class="demo-title">Roofing Calculator</h1>
+    <p class="demo-subtitle">Get an instant estimate for your roofing project</p>
+  </div>
+  <div class="demo-widget">
+    <script src="/widget/roofing-widget.js" data-company-id="demo"></script>
+  </div>
+  <div class="demo-footer">
+    <a href="/admin">Admin Portal &rarr;</a>
+  </div>
+</body>
+</html>

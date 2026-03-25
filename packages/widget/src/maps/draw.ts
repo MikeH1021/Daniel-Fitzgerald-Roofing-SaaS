@@ -1,151 +1,198 @@
 import { computeFootprintSqft } from '../utils/area';
 import { updateField } from '../state/form';
 import { drawingSqft } from '../state/map';
+import { importMapsLibrary } from './loader';
 
-let drawInstance: any = null;
+let polygon: any = null;
+let polyline: any = null;
+let clickListener: any = null;
+let markers: any[] = [];
+let mapRef: any = null;
+let pathCoords: { lat: number; lng: number }[] = [];
+let mapsCore: any = null;
+let overlays: any[] = [];
+let brandColor = '#2563eb';
 
 /**
- * Initialize Terra Draw with the Google Maps adapter.
- * Calls draw.start() immediately but resolves only after the 'ready' event fires
- * (required because TerraDrawGoogleMapsAdapter creates an OverlayView asynchronously).
+ * Initialize polygon drawing using native Google Maps API.
  */
-export function initDraw(map: any): Promise<any> {
-  return new Promise((resolve) => {
-    const { TerraDraw, TerraDrawPolygonMode } = (window as any).terraDraw;
-    const { TerraDrawGoogleMapsAdapter } = (window as any).terraDrawGoogleMapsAdapter;
+export async function initDraw(map: any, color?: string): Promise<any> {
+  mapRef = map;
+  pathCoords = [];
+  markers = [];
+  if (color) brandColor = color;
 
-    const draw = new TerraDraw({
-      adapter: new TerraDrawGoogleMapsAdapter({
-        lib: (window as any).google.maps,
-        map,
-        coordinatePrecision: 9,
-      }),
-      modes: [new TerraDrawPolygonMode()],
-    });
+  // Load core maps library
+  await importMapsLibrary('maps');
 
-    draw.start();
+  // Defer polygon/polyline creation to first click (ensures map is fully rendered)
+  polygon = null;
+  polyline = null;
 
-    // CRITICAL: Must wait for 'ready' before calling setMode
-    // The adapter creates an OverlayView which is only ready asynchronously
-    draw.on('ready', () => {
-      drawInstance = draw;
-      resolve(draw);
-    });
-  });
+
+  return {};
+}
+
+function cleanup() {
+  if (clickListener) {
+    google.maps.event.removeListener(clickListener);
+    clickListener = null;
+  }
+  if (polygon) {
+    polygon.setMap(null);
+    polygon = null;
+  }
+  if (polyline) {
+    polyline.setMap(null);
+    polyline = null;
+  }
+  overlays.forEach((o) => o.setMap(null));
+  overlays = [];
+  markers.forEach((m) => m.setMap(null));
+  markers = [];
+  pathCoords = [];
+  mapRef = null;
 }
 
 /**
- * Stop and clean up the Terra Draw instance.
+ * Stop and clean up the draw instance.
  */
 export function destroyDraw(): void {
-  if (drawInstance) {
-    drawInstance.stop();
-    drawInstance = null;
-  }
+  cleanup();
 }
 
 /**
- * Wire the 'change' and 'finish' events on the draw instance to compute live sqft
- * and auto-fill the form on polygon completion.
- *
- * @param draw - The Terra Draw instance (from initDraw)
- * @param pitch - Current pitch value for area calculation
- * @param onAreaUpdate - Callback called with sqft on every polygon change
+ * Wire click events on the map to build a polygon and compute live sqft.
  */
 export function startListeningForArea(
-  draw: any,
+  _draw: any,
   pitch: string,
   onAreaUpdate: (sqft: number) => void
 ): void {
-  draw.on('change', (ids: string[], type: string) => {
-    if (type === 'delete') return;
+  if (!mapRef) return;
 
-    const snapshot = draw.getSnapshot();
-    const polygon = snapshot.find(
-      (f: any) => f.geometry.type === 'Polygon' && f.properties.mode === 'polygon'
-    );
-    if (!polygon) return;
+  clickListener = mapRef.addListener('click', async (e: any) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    pathCoords.push({ lat, lng });
 
-    const coords = polygon.geometry.coordinates[0]; // outer ring: [[lng, lat], ...]
-    if (coords.length < 3) return;
+    // Create polygon/polyline on first click (lazy init ensures map is ready)
+    if (!polyline) {
+      const Polyline = (await importMapsLibrary('maps') as any).Polyline;
+      polyline = new Polyline({
+        strokeColor: brandColor,
+        strokeWeight: 3,
+        strokeOpacity: 1.0,
+        zIndex: 10,
+        map: mapRef,
+      });
+      }
+    if (!polygon) {
+      const Polygon = (await importMapsLibrary('maps') as any).Polygon;
+      polygon = new Polygon({
+        strokeColor: brandColor,
+        strokeWeight: 3,
+        strokeOpacity: 1.0,
+        fillColor: brandColor,
+        fillOpacity: 0.2,
+        zIndex: 9,
+        map: mapRef,
+      });
+    }
 
-    const sqft = computeFootprintSqft(coords, pitch);
-    drawingSqft.value = sqft;
-    onAreaUpdate(sqft);
-  });
+    // Add visible dot at click point
+    const dot = createDot({ lat, lng }, mapRef);
+    overlays.push(dot);
 
-  draw.on('finish', (id: string, context: { action: string; mode: string }) => {
-    if (context.action !== 'draw') return;
+    const path = pathCoords.map(p => ({ lat: p.lat, lng: p.lng }));
+    polyline.setPath(path);
+    polygon.setPath(path);
 
-    const snapshot = draw.getSnapshot();
-    const polygon = snapshot.find((f: any) => f.id === id);
-    if (!polygon) return;
 
-    const coords = polygon.geometry.coordinates[0];
-    const sqft = computeFootprintSqft(coords, pitch);
-    onAreaUpdate(sqft);
-    updateField('sqft', String(sqft));
+    // Compute area if we have 3+ points
+    if (pathCoords.length >= 3) {
+      const coords = pathCoords.map((p) => [p.lng, p.lat]);
+      coords.push(coords[0]);
+      const sqft = computeFootprintSqft(coords, pitch);
+      drawingSqft.value = sqft;
+      onAreaUpdate(sqft);
+    }
   });
 }
 
-/**
- * Close an in-progress polygon by extracting its vertices, removing the ghost point,
- * and re-adding it as a closed feature.
- *
- * @returns The closed ring coordinates, or null if not enough vertices
- */
-export function handleDoneDrawing(draw: any): number[][] | null {
-  const snapshot = draw.getSnapshot();
-  const inProgress = snapshot.find(
-    (f: any) =>
-      f.geometry.type === 'Polygon' &&
-      f.properties.mode === 'polygon' &&
-      f.properties.currentlyDrawing === true
-  );
+/** Create a dot overlay at runtime (avoids extending google.maps.OverlayView at parse time) */
+function createDot(latLng: { lat: number; lng: number }, map: any): any {
+  const Overlay = google.maps.OverlayView;
+  const dot = new Overlay();
+  const pos = new google.maps.LatLng(latLng.lat, latLng.lng);
+  let div: HTMLDivElement | null = null;
 
-  if (!inProgress) return null;
+  dot.onAdd = function () {
+    div = document.createElement('div');
+    const s = div.style;
+    s.position = 'absolute';
+    s.width = '12px';
+    s.height = '12px';
+    s.borderRadius = '50%';
+    s.background = brandColor;
+    s.border = '2px solid #fff';
+    s.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
+    s.transform = 'translate(-50%, -50%)';
+    dot.getPanes()!.overlayMouseTarget.appendChild(div);
+  };
 
-  // Terra Draw polygon ring: [...vertices, ghostCursorPoint]
-  // Remove the ghost (last point) to get actual placed vertices
-  const ring = inProgress.geometry.coordinates[0];
-  const vertices = ring.slice(0, -1);
+  dot.draw = function () {
+    if (!div) return;
+    const proj = dot.getProjection();
+    const pt = proj.fromLatLngToDivPixel(pos)!;
+    div.style.left = pt.x + 'px';
+    div.style.top = pt.y + 'px';
+  };
 
-  if (vertices.length < 3) return null;
+  dot.onRemove = function () {
+    div?.remove();
+    div = null;
+  };
 
-  // Remove the in-progress feature and add a closed polygon
-  draw.removeFeatures([inProgress.id]);
-
-  const closedRing = [...vertices, vertices[0]];
-  draw.addFeatures([
-    {
-      type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [closedRing] },
-      properties: { mode: 'polygon' },
-    },
-  ]);
-
-  return closedRing;
+  dot.setMap(map);
+  return dot;
 }
 
 /**
- * Remove all polygon features and restart polygon drawing mode.
+ * Finalize the polygon — stop listening for clicks, return closed ring.
  */
-export function handleClearPolygon(draw: any): void {
-  const snapshot = draw.getSnapshot();
-  const polygonIds = snapshot
-    .filter((f: any) => f.geometry.type === 'Polygon' || f.properties.mode === 'polygon')
-    .map((f: any) => f.id);
-
-  if (polygonIds.length > 0) {
-    draw.removeFeatures(polygonIds);
+export function handleDoneDrawing(_draw: any): number[][] | null {
+  if (clickListener) {
+    google.maps.event.removeListener(clickListener);
+    clickListener = null;
   }
 
-  draw.setMode('polygon');
+  if (pathCoords.length < 3) return null;
+
+  // Hide polyline, show filled polygon
+  if (polyline) polyline.setPath([]);
+
+  const coords = pathCoords.map((p) => [p.lng, p.lat]);
+  coords.push(coords[0]);
+  return coords;
 }
 
 /**
- * Reset the draw instance singleton for testing purposes.
+ * Remove all polygon features and restart drawing.
+ */
+export function handleClearPolygon(_draw: any): void {
+  pathCoords = [];
+  overlays.forEach((o) => o.setMap(null));
+  overlays = [];
+  markers.forEach((m) => m.setMap(null));
+  markers = [];
+  if (polygon) polygon.setPath([]);
+  if (polyline) polyline.setPath([]);
+}
+
+/**
+ * Reset for testing purposes.
  */
 export function _resetDrawForTesting(): void {
-  drawInstance = null;
+  cleanup();
 }

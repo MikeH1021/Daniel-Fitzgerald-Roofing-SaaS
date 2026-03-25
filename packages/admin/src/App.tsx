@@ -67,7 +67,7 @@ function AdminPage({ children }: { children: any }) {
 
   if (!loggedIn) {
     return (
-      <LoginForm onLogin={(_id: string, name: string) => setAuth(true, name)} />
+      <LoginForm onLogin={(id: string, name: string, role: 'super-admin' | 'company-admin') => setAuth(true, name, id, role)} />
     );
   }
 

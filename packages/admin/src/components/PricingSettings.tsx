@@ -181,13 +181,13 @@ export function PricingSettings({ companyId }: { companyId?: string }) {
                 <tr key={row.materialKey}>
                   <td class="material-name">{MATERIALS.find((m) => m.key === row.materialKey)?.label}</td>
                   <td>
-                    <input class="input input--number" type="number" step="0.01" value={row.costLow ?? ''} onInput={(e) => updateField(idx, 'costLow', (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} cost low`} />
+                    <input class="input input--number" type="number" step="0.01" value={row.costLow ?? ''} onInput={(e) => updateField(idx, 'costLow', (e.target as HTMLInputElement).value)} placeholder="Default" aria-label={`${MATERIALS[idx].label} cost low`} />
                     {validationErrors[`${row.materialKey}-costLow`] && (
                       <div class="field-error">{validationErrors[`${row.materialKey}-costLow`]}</div>
                     )}
                   </td>
                   <td>
-                    <input class="input input--number" type="number" step="0.01" value={row.costHigh ?? ''} onInput={(e) => updateField(idx, 'costHigh', (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} cost high`} />
+                    <input class="input input--number" type="number" step="0.01" value={row.costHigh ?? ''} onInput={(e) => updateField(idx, 'costHigh', (e.target as HTMLInputElement).value)} placeholder="Default" aria-label={`${MATERIALS[idx].label} cost high`} />
                     {validationErrors[`${row.materialKey}-costHigh`] && (
                       <div class="field-error">{validationErrors[`${row.materialKey}-costHigh`]}</div>
                     )}
@@ -225,7 +225,7 @@ export function PricingSettings({ companyId }: { companyId?: string }) {
                   <td class="material-name">{MATERIALS.find((m) => m.key === row.materialKey)?.label}</td>
                   {PITCH_FIELDS.map((p) => (
                     <td key={p.key}>
-                      <input class="input input--number" type="number" step="0.01" value={row[p.key] ?? ''} onInput={(e) => updateField(idx, p.key, (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} ${p.label} multiplier`} />
+                      <input class="input input--number" type="number" step="0.01" value={row[p.key] ?? ''} onInput={(e) => updateField(idx, p.key, (e.target as HTMLInputElement).value)} placeholder="Default" aria-label={`${MATERIALS[idx].label} ${p.label} multiplier`} />
                       {validationErrors[`${row.materialKey}-${p.key}`] && (
                         <div class="field-error">{validationErrors[`${row.materialKey}-${p.key}`]}</div>
                       )}

@@ -21,7 +21,7 @@ async function request(path: string, options: RequestInit = {}): Promise<Respons
   });
 
   // Global 401 interceptor: redirect to login on session expiry
-  if (res.status === 401 && path !== '/login' && path !== '/setup') {
+  if (res.status === 401 && path !== '/login' && path !== '/setup' && path !== '/me' && path !== '/csrf-token') {
     window.location.replace('/admin');
   }
 
@@ -34,8 +34,8 @@ async function jsonRequest(path: string, options: RequestInit = {}): Promise<Res
     'Content-Type': 'application/json',
   };
 
-  // Include X-CSRF-Token on state-changing requests
-  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+  // Include X-CSRF-Token on state-changing requests (skip for login/setup — no session yet)
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && path !== '/login' && path !== '/setup') {
     const token = await fetchCsrfToken();
     if (token) {
       extraHeaders['X-CSRF-Token'] = token;
@@ -100,7 +100,7 @@ export const api = {
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) throw new Error('Invalid credentials');
-    return res.json() as Promise<{ companyId: string; name: string }>;
+    return res.json() as Promise<{ companyId: string; name: string; role: 'super-admin' | 'company-admin' }>;
   },
 
   async logout() {

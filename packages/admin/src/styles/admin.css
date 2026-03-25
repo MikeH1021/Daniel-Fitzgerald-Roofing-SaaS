@@ -886,6 +886,8 @@ a.nav-item {
 .demo-header {
   text-align: center;
   margin-bottom: 32px;
+  width: 100%;
+  max-width: 520px;
 }
 
 .demo-title {

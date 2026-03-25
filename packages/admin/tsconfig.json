@@ -10,7 +10,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist",
-    "declaration": false
+    "declaration": false,
+    "paths": {
+      "@widget/*": ["../widget/src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../widget/src"]
 }

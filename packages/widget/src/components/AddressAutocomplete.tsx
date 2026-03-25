@@ -97,10 +97,14 @@ export function AddressAutocomplete({ onPlaceSelected }: Props) {
     }
 
     debounceTimer.current = setTimeout(async () => {
-      const results = await fetchSuggestions(value);
-      suggestions.value = results;
-      if (results.length > 0) {
-        showDropdown.value = true;
+      try {
+        const results = await fetchSuggestions(value);
+        suggestions.value = results;
+        if (results.length > 0) {
+          showDropdown.value = true;
+        }
+      } catch (err) {
+        console.error('[RoofingWidget] Address autocomplete error:', err);
       }
     }, 300);
   }

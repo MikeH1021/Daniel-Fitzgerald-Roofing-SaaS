@@ -9,44 +9,76 @@ interface Props {
 }
 
 export function MapView({ lat, lng, onMapReady }: Props) {
-  const mapRef = useRef<HTMLDivElement>(null);
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const mapDivRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     async function initMap() {
-      if (!mapRef.current) return;
+      if (!placeholderRef.current) return;
+
+      // Create map div in document.body (outside Shadow DOM) so overlays render
+      if (!mapDivRef.current) {
+        const div = document.createElement('div');
+        div.style.position = 'absolute';
+        div.style.zIndex = '10000';
+        div.style.borderRadius = '8px';
+        div.style.overflow = 'hidden';
+        document.body.appendChild(div);
+        mapDivRef.current = div;
+      }
+
+      // Position map div over placeholder
+      syncPosition();
 
       const { Map } = await importMapsLibrary('maps') as any;
 
       if (mapInstanceRef.current) {
-        // Map already initialized — just re-center
         mapInstanceRef.current.setCenter({ lat, lng });
         return;
       }
 
-      mapInstanceRef.current = new Map(mapRef.current, {
+      mapInstanceRef.current = new Map(mapDivRef.current, {
         center: { lat, lng },
-        zoom: 20,                   // roof-level: buildings clearly rendered
-        mapTypeId: 'hybrid',        // satellite imagery with street labels
+        zoom: 20,
+        mapTypeId: 'hybrid',
         disableDefaultUI: true,
-        gestureHandling: 'greedy', // single-finger pan on mobile
+        gestureHandling: 'greedy',
       });
 
-      // Notify parent that map instance is ready (required for DrawingControls / Terra Draw)
       if (onMapReady) {
         onMapReady(mapInstanceRef.current);
       }
     }
 
+    function syncPosition() {
+      if (!placeholderRef.current || !mapDivRef.current) return;
+      const rect = placeholderRef.current.getBoundingClientRect();
+      const s = mapDivRef.current.style;
+      s.top = (rect.top + window.scrollY) + 'px';
+      s.left = (rect.left + window.scrollX) + 'px';
+      s.width = rect.width + 'px';
+      s.height = rect.height + 'px';
+      rafRef.current = requestAnimationFrame(syncPosition);
+    }
+
     initMap();
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      if (mapDivRef.current) {
+        mapDivRef.current.remove();
+        mapDivRef.current = null;
+      }
+      mapInstanceRef.current = null;
+    };
   }, [lat, lng]);
 
   return (
     <div
-      ref={mapRef}
-      id="rc-map"
+      ref={placeholderRef}
       class="rc-map-container"
-      // Explicit height is critical — Maps API renders at 0px without it (RESEARCH.md Pitfall 3)
       style={{ width: '100%', height: '300px' }}
     />
   );

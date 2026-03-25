@@ -693,6 +693,8 @@ describe('GET /api/admin/companies/:companyId/embed-code', () => {
 
   beforeAll(async () => {
     await seedAdminData(env.DB);
+    // Ensure a super-admin exists first so embed-scoped company stays company-admin
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role, password_hash) VALUES ('embed-super-admin', 'Super Admin Co', 'superadmin-embed@test.com', '#2563eb', 'super-admin', 'dummy-hash');");
     await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${companyId}', 'Embed Scoped Co', 'embedscoped@test.com', '#2563eb', 'company-admin');`);
     sessionCookie = await setupAndLogin('embedscoped@test.com', 'EmbedScoped1!');
   });

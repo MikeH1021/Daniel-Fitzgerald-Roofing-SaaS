@@ -6,6 +6,7 @@ export function CompanyList() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const [error, setError] = useState('');
   const mountedRef = useRef(true);
 
   const loadCompanies = (includeArchived: boolean) => {
@@ -35,8 +36,9 @@ export function CompanyList() {
     try {
       await api.archiveCompany(company.id);
       loadCompanies(showArchived);
+      setError('');
     } catch {
-      alert('Failed to archive company. Please try again.');
+      setError('Failed to archive company. Please try again.');
     }
   };
 
@@ -44,8 +46,9 @@ export function CompanyList() {
     try {
       await api.restoreCompany(company.id);
       loadCompanies(showArchived);
+      setError('');
     } catch {
-      alert('Failed to restore company. Please try again.');
+      setError('Failed to restore company. Please try again.');
     }
   };
 
@@ -73,6 +76,8 @@ export function CompanyList() {
           + New Company
         </a>
       </div>
+
+      {error && <div class="status-msg status-msg--error" role="alert" style={{ marginBottom: '16px' }}>{'\u2717'} {error}</div>}
 
       <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: 'var(--slate-400)' }}>

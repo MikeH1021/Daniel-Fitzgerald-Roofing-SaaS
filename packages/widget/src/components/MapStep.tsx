@@ -1,7 +1,7 @@
 import { h } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { fetchMapsKey } from '../api/client';
-import { loadMapsApi, importMapsLibrary, loadTerraDrawScripts } from '../maps/loader';
+import { loadMapsApi, importMapsLibrary } from '../maps/loader';
 import { initDraw, destroyDraw, startListeningForArea, handleDoneDrawing, handleClearPolygon } from '../maps/draw';
 import { apiKey, selectedPlace, mapLoading, mapError, isDrawingActive, hasFinishedPolygon, drawingSqft, mapMode } from '../state/map';
 import { updateField, formData } from '../state/form';
@@ -10,6 +10,7 @@ import { MapView } from './MapView';
 import { DrawingControls } from './DrawingControls';
 import { computeFootprintSqft } from '../utils/area';
 import type { SelectedPlace } from '../maps/types';
+import { companyConfig } from '../App';
 
 // Pitch key → display label
 const PITCH_LABELS: Record<string, string> = {
@@ -62,24 +63,20 @@ export function MapStep() {
       // 1. Load geometry library (required for computeArea)
       await importMapsLibrary('geometry');
 
-      // 2. Load Terra Draw UMD scripts (sequential — adapter depends on core)
-      await loadTerraDrawScripts();
-
-      // 3. Initialize Terra Draw — resolves after 'ready' event
-      const draw = await initDraw(mapInstance);
+      // 2. Initialize native Google Maps polygon drawing
+      const color = companyConfig.value?.primaryColor;
+      const draw = await initDraw(mapInstance, color || undefined);
       drawRef.current = draw;
 
-      // 4. Start polygon drawing mode
-      draw.setMode('polygon');
       isDrawingActive.value = true;
 
-      // 5. Wire live area updates
+      // 3. Wire live area updates via map click listener
       const pitch = formData.value.pitch || 'medium';
       startListeningForArea(draw, pitch, (sqft) => {
         drawingSqft.value = sqft;
       });
     } catch (_err) {
-      // Terra Draw or geometry library failed to load
+      console.error('[RoofingWidget] Drawing init error:', _err);
       mapError.value = true;
     }
   }
@@ -109,6 +106,7 @@ export function MapStep() {
   function handleClear() {
     if (!drawRef.current) return;
     handleClearPolygon(drawRef.current);
+    drawingSqft.value = 0;
     hasFinishedPolygon.value = false;
     isDrawingActive.value = true;
   }
