@@ -1,25 +1,36 @@
-import { useState, useEffect } from 'preact/hooks';
-import { api } from '../api';
+import { useState, useEffect, useRef } from 'preact/hooks';
 
-export function EmbedCode() {
+export function EmbedCode({ companyId }: { companyId?: string }) {
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const copyTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    api.getEmbedCode().then((data) => {
-      setCode(data.embedCode);
+    if (companyId) {
+      // Generate embed code client-side for company-scoped view
+      const origin = window.location.origin;
+      setCode(`<script src="${origin}/widget/roofing-widget.js" data-company-id="${companyId}"></script>`);
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    } else {
+      setLoading(false);
+    }
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(copyTimer.current);
+    };
+  }, [companyId]);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => {
+        if (mountedRef.current) setCopied(false);
+      }, 2000);
     } catch {
-      // Fallback for non-HTTPS contexts
       const textarea = document.createElement('textarea');
       textarea.value = code;
       document.body.appendChild(textarea);
@@ -27,50 +38,46 @@ export function EmbedCode() {
       document.execCommand('copy');
       document.body.removeChild(textarea);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => {
+        if (mountedRef.current) setCopied(false);
+      }, 2000);
     }
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) {
+    return (
+      <div class="card">
+        <div class="skeleton" style={{ width: '100%', height: '80px' }} />
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, marginBottom: 20 }}>Embed Code</h2>
-      <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
-        Copy this script tag and paste it into your website to display the roofing calculator widget.
-      </p>
-      <div style={{ position: 'relative' }}>
-        <code style={{
-          display: 'block',
-          padding: 16,
-          background: '#1e293b',
-          color: '#e2e8f0',
-          borderRadius: 8,
-          fontSize: 13,
-          lineHeight: 1.6,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-all',
-          fontFamily: "'Fira Code', 'Consolas', monospace",
-        }}>
-          {code}
-        </code>
-        <button
-          onClick={handleCopy}
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            padding: '6px 12px',
-            background: copied ? '#059669' : '#475569',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 4,
-            fontSize: 12,
-            cursor: 'pointer',
-          }}
-        >
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
+      <div class="card stagger-1">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 7l-4 3 4 3M13 7l4 3-4 3M11 4l-2 12" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Script Tag</h3>
+            <p class="card-description">Paste this into your page's HTML</p>
+          </div>
+        </div>
+
+        <div class="code-block">
+          <code>{code}</code>
+          <button
+            class={`btn-copy ${copied ? 'btn-copy--copied' : ''}`}
+            onClick={handleCopy}
+            aria-label={copied ? 'Copied to clipboard' : 'Copy embed code to clipboard'}
+          >
+            {copied ? '\u2713 Copied' : 'Copy'}
+          </button>
+        </div>
       </div>
     </div>
   );

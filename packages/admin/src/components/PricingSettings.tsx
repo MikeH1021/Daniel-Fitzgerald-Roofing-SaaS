@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { api } from '../api';
 
 interface PricingRow {
@@ -28,21 +28,32 @@ function emptyRow(materialKey: string): PricingRow {
   return { materialKey, costLow: null, costHigh: null, pitchFlat: null, pitchLow: null, pitchMedium: null, pitchSteep: null };
 }
 
-export function PricingSettings() {
+export function PricingSettings({ companyId }: { companyId?: string }) {
   const [rows, setRows] = useState<PricingRow[]>(MATERIALS.map((m) => emptyRow(m.key)));
   const [status, setStatus] = useState('');
+  const [statusType, setStatusType] = useState<'success' | 'error' | 'info'>('success');
   const [loading, setLoading] = useState(true);
+  const statusTimer = useRef<ReturnType<typeof setTimeout>>();
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    api.getPricing().then((data) => {
+    if (!companyId) { setLoading(false); return; }
+    api.getCompanyPricing(companyId).then((data) => {
+      if (!mountedRef.current) return;
       const merged = MATERIALS.map((m) => {
-        const existing = data.find((d) => d.materialKey === m.key);
+        const existing = data.find((d: { materialKey: string }) => d.materialKey === m.key);
         return existing ? { ...emptyRow(m.key), ...existing } : emptyRow(m.key);
       });
       setRows(merged);
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    }).catch(() => {
+      if (mountedRef.current) setLoading(false);
+    });
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(statusTimer.current);
+    };
+  }, [companyId]);
 
   const updateField = (idx: number, field: keyof PricingRow, value: string) => {
     setRows((prev) => {
@@ -54,7 +65,8 @@ export function PricingSettings() {
   };
 
   const handleSave = async () => {
-    setStatus('Saving...');
+    setStatus('Saving\u2026');
+    setStatusType('info');
     try {
       const overrides = rows
         .filter((r) => r.costLow !== null || r.costHigh !== null || r.pitchFlat !== null || r.pitchLow !== null || r.pitchMedium !== null || r.pitchSteep !== null)
@@ -68,102 +80,114 @@ export function PricingSettings() {
           if (r.pitchSteep !== null) o.pitchSteep = r.pitchSteep;
           return o;
         });
-      await api.updatePricing(overrides as Parameters<typeof api.updatePricing>[0]);
+      if (!companyId) throw new Error('No company ID');
+      await api.updateCompanyPricing(companyId, overrides as Parameters<typeof api.updateCompanyPricing>[1]);
+      if (!mountedRef.current) return;
       setStatus('Pricing saved successfully');
+      setStatusType('success');
     } catch {
+      if (!mountedRef.current) return;
       setStatus('Failed to save pricing');
+      setStatusType('error');
     }
-    setTimeout(() => setStatus(''), 3000);
+    clearTimeout(statusTimer.current);
+    statusTimer.current = setTimeout(() => {
+      if (mountedRef.current) setStatus('');
+    }, 3000);
   };
 
-  if (loading) return <p>Loading...</p>;
-
-  const inputStyle = { width: 80, padding: '4px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, textAlign: 'right' as const };
-  const thStyle = { padding: '8px 12px', textAlign: 'left' as const, borderBottom: '2px solid #e5e7eb', fontSize: 13, fontWeight: 600 };
-  const tdStyle = { padding: '8px 12px', borderBottom: '1px solid #f3f4f6' };
+  if (loading) {
+    return (
+      <div class="card">
+        <div class="skeleton" style={{ width: '100%', height: '200px' }} />
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, marginBottom: 20 }}>Pricing Overrides</h2>
-      <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Leave fields blank to use default values. Costs are per sq ft.</p>
-
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Material Costs ($/sq ft)</h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Material</th>
-            <th style={thStyle}>Cost Low</th>
-            <th style={thStyle}>Cost High</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={row.materialKey}>
-              <td style={tdStyle}>{MATERIALS.find((m) => m.key === row.materialKey)?.label}</td>
-              <td style={tdStyle}>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={row.costLow ?? ''}
-                  onInput={(e) => updateField(idx, 'costLow', (e.target as HTMLInputElement).value)}
-                  style={inputStyle}
-                  placeholder="default"
-                />
-              </td>
-              <td style={tdStyle}>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={row.costHigh ?? ''}
-                  onInput={(e) => updateField(idx, 'costHigh', (e.target as HTMLInputElement).value)}
-                  style={inputStyle}
-                  placeholder="default"
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Pitch Multipliers</h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Material</th>
-            {PITCH_FIELDS.map((p) => (
-              <th key={p.key} style={thStyle}>{p.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={row.materialKey}>
-              <td style={tdStyle}>{MATERIALS.find((m) => m.key === row.materialKey)?.label}</td>
-              {PITCH_FIELDS.map((p) => (
-                <td key={p.key} style={tdStyle}>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={row[p.key] ?? ''}
-                    onInput={(e) => updateField(idx, p.key, (e.target as HTMLInputElement).value)}
-                    style={inputStyle}
-                    placeholder="default"
-                  />
-                </td>
+      <div class="card stagger-1">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 2v16M14 5.5H8a2.5 2.5 0 000 5h4a2.5 2.5 0 010 5H6" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Material Costs</h3>
+            <p class="card-description">Cost per square foot &mdash; leave blank for defaults</p>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Material</th>
+                <th scope="col">Cost Low</th>
+                <th scope="col">Cost High</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr key={row.materialKey}>
+                  <td class="material-name">{MATERIALS.find((m) => m.key === row.materialKey)?.label}</td>
+                  <td>
+                    <input class="input input--number" type="number" step="0.01" value={row.costLow ?? ''} onInput={(e) => updateField(idx, 'costLow', (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} cost low`} />
+                  </td>
+                  <td>
+                    <input class="input input--number" type="number" step="0.01" value={row.costHigh ?? ''} onInput={(e) => updateField(idx, 'costHigh', (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} cost high`} />
+                  </td>
+                </tr>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      <button
-        onClick={handleSave}
-        style={{ padding: '10px 24px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, fontSize: 14, cursor: 'pointer' }}
-      >
-        Save Pricing
-      </button>
+      <div class="card stagger-2">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 17l4-8 4 5 3-4 3 7" /><path d="M3 3v14h14" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Pitch Multipliers</h3>
+            <p class="card-description">Adjust multipliers based on roof steepness</p>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Material</th>
+                {PITCH_FIELDS.map((p) => <th key={p.key} scope="col">{p.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr key={row.materialKey}>
+                  <td class="material-name">{MATERIALS.find((m) => m.key === row.materialKey)?.label}</td>
+                  {PITCH_FIELDS.map((p) => (
+                    <td key={p.key}>
+                      <input class="input input--number" type="number" step="0.01" value={row[p.key] ?? ''} onInput={(e) => updateField(idx, p.key, (e.target as HTMLInputElement).value)} placeholder="\u2014" aria-label={`${MATERIALS[idx].label} ${p.label} multiplier`} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      {status && <p style={{ color: status.includes('Failed') ? '#dc2626' : '#059669', fontSize: 14, marginTop: 12 }}>{status}</p>}
+      <div class="save-row">
+        <button class="btn btn-primary" onClick={handleSave}>Save Pricing</button>
+        {status && (
+          <span class={`status-msg status-msg--${statusType}`} role="status">
+            {statusType === 'error' ? '\u2717' : statusType === 'info' ? '\u2022' : '\u2713'} {status}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
