@@ -102,25 +102,14 @@ admin.post('/login', loginRateLimiter, zValidator('json', loginSchema), async (c
 
 // --- Protected routes (auth + CSRF middleware) ---
 
-admin.use('/settings', authMiddleware);
-admin.use('/settings/*', authMiddleware);
-admin.use('/pricing', authMiddleware);
-admin.use('/pricing/*', authMiddleware);
-admin.use('/embed-code', authMiddleware);
 admin.use('/logout', authMiddleware);
-admin.use('/logo', authMiddleware);
 admin.use('/companies', authMiddleware);
 admin.use('/companies/*', authMiddleware);
 admin.use('/me', authMiddleware);
 admin.use('/csrf-token', authMiddleware);
 
 // Apply CSRF to state-changing protected routes
-admin.use('/settings', csrfMiddleware);
-admin.use('/settings/*', csrfMiddleware);
-admin.use('/pricing', csrfMiddleware);
-admin.use('/pricing/*', csrfMiddleware);
 admin.use('/logout', csrfMiddleware);
-admin.use('/logo', csrfMiddleware);
 admin.use('/companies', csrfMiddleware);
 admin.use('/companies/*', csrfMiddleware);
 
@@ -298,114 +287,10 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/svg+xml': '.svg',
 };
 
-// --- Legacy session-scoped routes (kept for backward compatibility) ---
+// --- Company-scoped embed-code endpoint ---
 
-admin.post('/logo', async (c) => {
-  const companyId = c.get('companyId');
-  const formData = await c.req.formData();
-  const file = formData.get('logo');
-
-  if (!file || !(file instanceof File)) {
-    return c.json({ error: 'No logo file provided' }, 400);
-  }
-
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return c.json({ error: 'Invalid file type. Must be an image (png, jpeg, webp, svg)' }, 400);
-  }
-
-  if (file.size > MAX_LOGO_SIZE) {
-    return c.json({ error: 'File too large. Maximum size is 1MB' }, 400);
-  }
-
-  const ext = MIME_TO_EXT[file.type] || '.png';
-  const key = `${companyId}/logo${ext}`;
-
-  await c.env.LOGOS_BUCKET.put(key, file.stream(), {
-    httpMetadata: { contentType: file.type },
-  });
-
-  const logoUrl = `/api/logos/${companyId}`;
-
-  const db = createDb(c.env.DB);
-  await db.update(companies).set({ logoUrl }).where(eq(companies.id, companyId));
-
-  return c.json({ logoUrl });
-});
-
-admin.get('/settings', async (c) => {
-  const companyId = c.get('companyId');
-  const db = createDb(c.env.DB);
-
-  const rows = await db
-    .select({ name: companies.name, primaryColor: companies.primaryColor, logoUrl: companies.logoUrl })
-    .from(companies)
-    .where(eq(companies.id, companyId))
-    .limit(1);
-
-  if (rows.length === 0) {
-    return c.json({ error: 'Company not found' }, 404);
-  }
-
-  return c.json(rows[0]);
-});
-
-admin.patch('/settings', zValidator('json', settingsSchema), async (c) => {
-  const data = c.req.valid('json');
-  const companyId = c.get('companyId');
-  const db = createDb(c.env.DB);
-
-  const updates: Record<string, string> = {};
-  if (data.primaryColor) updates.primaryColor = data.primaryColor;
-
-  if (Object.keys(updates).length > 0) {
-    await db.update(companies).set(updates).where(eq(companies.id, companyId));
-  }
-
-  return c.json({ success: true });
-});
-
-admin.get('/pricing', async (c) => {
-  const companyId = c.get('companyId');
-  const db = createDb(c.env.DB);
-
-  const rows = await db
-    .select()
-    .from(pricingOverrides)
-    .where(eq(pricingOverrides.companyId, companyId));
-
-  return c.json(rows);
-});
-
-admin.put('/pricing', zValidator('json', z.array(pricingItemSchema)), async (c) => {
-  const overrides = c.req.valid('json');
-  const companyId = c.get('companyId');
-  const db = createDb(c.env.DB);
-
-  // Delete existing overrides for this company
-  await db.delete(pricingOverrides).where(eq(pricingOverrides.companyId, companyId));
-
-  // Insert new overrides
-  if (overrides.length > 0) {
-    await db.insert(pricingOverrides).values(
-      overrides.map((o) => ({
-        id: nanoid(),
-        companyId,
-        materialKey: o.materialKey,
-        costLow: o.costLow ?? null,
-        costHigh: o.costHigh ?? null,
-        pitchFlat: o.pitchFlat ?? null,
-        pitchLow: o.pitchLow ?? null,
-        pitchMedium: o.pitchMedium ?? null,
-        pitchSteep: o.pitchSteep ?? null,
-      })),
-    );
-  }
-
-  return c.json({ success: true, count: overrides.length });
-});
-
-admin.get('/embed-code', async (c) => {
-  const companyId = c.get('companyId');
+admin.get('/companies/:companyId/embed-code', companyAccessGuard, async (c) => {
+  const companyId = c.req.param('companyId');
   const baseUrl = c.env.API_BASE_URL || new URL(c.req.url).origin;
   const embedCode = `<script src="${baseUrl}/widget/roofing-widget.js" data-company-id="${companyId}"></script>`;
   return c.json({ embedCode });

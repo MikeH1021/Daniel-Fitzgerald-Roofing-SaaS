@@ -123,36 +123,8 @@ describe('Protected routes without auth', () => {
     await seedAdminData(env.DB);
   });
 
-  it('GET /api/admin/settings returns 401', async () => {
-    const res = await app.request('/api/admin/settings', { method: 'GET' }, env);
-    expect(res.status).toBe(401);
-  });
-
-  it('PATCH /api/admin/settings returns 401', async () => {
-    const res = await app.request('/api/admin/settings', {
-      method: 'PATCH',
-      body: JSON.stringify({ primaryColor: '#ff5500' }),
-      headers: { 'Content-Type': 'application/json' },
-    }, env);
-    expect(res.status).toBe(401);
-  });
-
-  it('GET /api/admin/pricing returns 401', async () => {
-    const res = await app.request('/api/admin/pricing', { method: 'GET' }, env);
-    expect(res.status).toBe(401);
-  });
-
-  it('PUT /api/admin/pricing returns 401', async () => {
-    const res = await app.request('/api/admin/pricing', {
-      method: 'PUT',
-      body: JSON.stringify([]),
-      headers: { 'Content-Type': 'application/json' },
-    }, env);
-    expect(res.status).toBe(401);
-  });
-
-  it('GET /api/admin/embed-code returns 401', async () => {
-    const res = await app.request('/api/admin/embed-code', { method: 'GET' }, env);
+  it('GET /api/admin/companies returns 401', async () => {
+    const res = await app.request('/api/admin/companies', { method: 'GET' }, env);
     expect(res.status).toBe(401);
   });
 
@@ -160,19 +132,25 @@ describe('Protected routes without auth', () => {
     const res = await app.request('/api/admin/logout', { method: 'POST' }, env);
     expect(res.status).toBe(401);
   });
+
+  it('GET /api/admin/me returns 401', async () => {
+    const res = await app.request('/api/admin/me', { method: 'GET' }, env);
+    expect(res.status).toBe(401);
+  });
 });
 
-describe('PATCH /api/admin/settings', () => {
+describe('PATCH /api/admin/companies/:companyId/settings', () => {
   let sessionCookie: string;
+  const companyId = 'settings-company';
 
   beforeAll(async () => {
     await seedAdminData(env.DB);
-    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('settings-company', 'Settings Co', 'settings@test.com', '#2563eb');");
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${companyId}', 'Settings Co', 'settings@test.com', '#2563eb');`);
     sessionCookie = await setupAndLogin('settings@test.com', 'SettingsPass1!');
   });
 
   it('updates primary color with valid hex', async () => {
-    const res = await app.request('http://localhost/api/admin/settings', {
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/settings`, {
       method: 'PATCH',
       body: JSON.stringify({ primaryColor: '#ff5500' }),
       headers: {
@@ -187,7 +165,7 @@ describe('PATCH /api/admin/settings', () => {
   });
 
   it('rejects invalid hex color', async () => {
-    const res = await app.request('http://localhost/api/admin/settings', {
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/settings`, {
       method: 'PATCH',
       body: JSON.stringify({ primaryColor: 'notacolor' }),
       headers: {
@@ -200,15 +178,16 @@ describe('PATCH /api/admin/settings', () => {
   });
 });
 
-describe('GET /api/admin/settings - returns updated values', () => {
+describe('GET /api/admin/companies/:companyId/settings - returns updated values', () => {
   let sessionCookie: string;
+  const companyId = 'settings-company';
 
   beforeAll(async () => {
     await seedAdminData(env.DB);
-    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('settings-company', 'Settings Co', 'settings@test.com', '#2563eb');");
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${companyId}', 'Settings Co', 'settings@test.com', '#2563eb');`);
     sessionCookie = await setupAndLogin('settings@test.com', 'SettingsPass1!');
     // Apply the PATCH so GET can verify
-    await app.request('http://localhost/api/admin/settings', {
+    await app.request(`http://localhost/api/admin/companies/${companyId}/settings`, {
       method: 'PATCH',
       body: JSON.stringify({ primaryColor: '#ff5500' }),
       headers: {
@@ -220,7 +199,7 @@ describe('GET /api/admin/settings - returns updated values', () => {
   });
 
   it('returns the updated primary color', async () => {
-    const res = await app.request('/api/admin/settings', {
+    const res = await app.request(`/api/admin/companies/${companyId}/settings`, {
       method: 'GET',
       headers: { Cookie: `session=${sessionCookie}` },
     }, env);
@@ -231,12 +210,13 @@ describe('GET /api/admin/settings - returns updated values', () => {
   });
 });
 
-describe('PUT /api/admin/pricing', () => {
+describe('PUT /api/admin/companies/:companyId/pricing', () => {
   let sessionCookie: string;
+  const companyId = 'pricing-company';
 
   beforeAll(async () => {
     await seedAdminData(env.DB);
-    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('pricing-company', 'Pricing Co', 'pricing@test.com', '#2563eb');");
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${companyId}', 'Pricing Co', 'pricing@test.com', '#2563eb');`);
     sessionCookie = await setupAndLogin('pricing@test.com', 'PricingPass1!');
   });
 
@@ -245,7 +225,7 @@ describe('PUT /api/admin/pricing', () => {
       { materialKey: 'architectural', costLow: 5.0, costHigh: 7.0 },
       { materialKey: '3-tab', costLow: 3.0, costHigh: 4.5, pitchSteep: 1.4 },
     ];
-    const res = await app.request('http://localhost/api/admin/pricing', {
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
       method: 'PUT',
       body: JSON.stringify(overrides),
       headers: {
@@ -261,19 +241,20 @@ describe('PUT /api/admin/pricing', () => {
   });
 });
 
-describe('GET /api/admin/pricing - returns current overrides', () => {
+describe('GET /api/admin/companies/:companyId/pricing - returns current overrides', () => {
   let sessionCookie: string;
+  const companyId = 'pricing-company';
 
   beforeAll(async () => {
     await seedAdminData(env.DB);
-    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('pricing-company', 'Pricing Co', 'pricing@test.com', '#2563eb');");
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${companyId}', 'Pricing Co', 'pricing@test.com', '#2563eb');`);
     sessionCookie = await setupAndLogin('pricing@test.com', 'PricingPass1!');
     // Apply PUT so GET can verify
     const overrides = [
       { materialKey: 'architectural', costLow: 5.0, costHigh: 7.0 },
       { materialKey: '3-tab', costLow: 3.0, costHigh: 4.5, pitchSteep: 1.4 },
     ];
-    await app.request('http://localhost/api/admin/pricing', {
+    await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
       method: 'PUT',
       body: JSON.stringify(overrides),
       headers: {
@@ -285,7 +266,7 @@ describe('GET /api/admin/pricing - returns current overrides', () => {
   });
 
   it('returns the current overrides', async () => {
-    const res = await app.request('/api/admin/pricing', {
+    const res = await app.request(`/api/admin/companies/${companyId}/pricing`, {
       method: 'GET',
       headers: { Cookie: `session=${sessionCookie}` },
     }, env);
@@ -295,28 +276,6 @@ describe('GET /api/admin/pricing - returns current overrides', () => {
     const keys = body.map((o) => o.materialKey);
     expect(keys).toContain('architectural');
     expect(keys).toContain('3-tab');
-  });
-});
-
-describe('GET /api/admin/embed-code', () => {
-  let sessionCookie: string;
-
-  beforeAll(async () => {
-    await seedAdminData(env.DB);
-    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('embed-company', 'Embed Co', 'embed@test.com', '#2563eb');");
-    sessionCookie = await setupAndLogin('embed@test.com', 'EmbedPass1!');
-  });
-
-  it('returns script tag with correct companyId', async () => {
-    const res = await app.request('/api/admin/embed-code', {
-      method: 'GET',
-      headers: { Cookie: `session=${sessionCookie}` },
-    }, env);
-    expect(res.status).toBe(200);
-    const body = await res.json() as { embedCode: string };
-    expect(body.embedCode).toContain('embed-company');
-    expect(body.embedCode).toContain('<script');
-    expect(body.embedCode).toContain('roofing-widget.js');
   });
 });
 
@@ -342,12 +301,13 @@ describe('POST /api/admin/logout', () => {
   });
 });
 
-describe('POST /api/admin/logo', () => {
+describe('POST /api/admin/companies/:companyId/logo', () => {
   let sessionCookie: string;
+  const companyId = 'logo-company';
 
   beforeAll(async () => {
     await seedAdminData(env.DB);
-    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('logo-company', 'Logo Co', 'logo@test.com', '#2563eb');");
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${companyId}', 'Logo Co', 'logo@test.com', '#2563eb');`);
     sessionCookie = await setupAndLogin('logo@test.com', 'LogoPass123!');
   });
 
@@ -365,14 +325,14 @@ describe('POST /api/admin/logo', () => {
     const formData = new FormData();
     formData.append('logo', file);
 
-    const res = await app.request('http://localhost/api/admin/logo', {
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/logo`, {
       method: 'POST',
       body: formData,
       headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(200);
     const body = await res.json() as { logoUrl: string };
-    expect(body.logoUrl).toContain('logo-company');
+    expect(body.logoUrl).toContain(companyId);
   });
 
   it('rejects files over 1MB', async () => {
@@ -381,14 +341,14 @@ describe('POST /api/admin/logo', () => {
     const formData = new FormData();
     formData.append('logo', file);
 
-    const res = await app.request('http://localhost/api/admin/logo', {
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/logo`, {
       method: 'POST',
       body: formData,
       headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
-    expect(body.error).toContain('1MB');
+    expect(body.error).toMatch(/too large|1MB/i);
   });
 
   it('rejects non-image file types', async () => {
@@ -396,14 +356,14 @@ describe('POST /api/admin/logo', () => {
     const formData = new FormData();
     formData.append('logo', file);
 
-    const res = await app.request('http://localhost/api/admin/logo', {
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/logo`, {
       method: 'POST',
       body: formData,
       headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
-    expect(body.error).toContain('image');
+    expect(body.error).toMatch(/invalid file type|image/i);
   });
 });
 
@@ -426,7 +386,7 @@ describe('GET /api/logos/:companyId', () => {
     const file = new File([pngBytes], 'logo.png', { type: 'image/png' });
     const formData = new FormData();
     formData.append('logo', file);
-    await app.request('http://localhost/api/admin/logo', {
+    await app.request('http://localhost/api/admin/companies/logo-serve-company/logo', {
       method: 'POST',
       body: formData,
       headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
@@ -466,7 +426,7 @@ describe('POST /api/admin/logout - session invalidated', () => {
   });
 
   it('returns 401 after logout', async () => {
-    const res = await app.request('/api/admin/settings', {
+    const res = await app.request('/api/admin/me', {
       method: 'GET',
       headers: { Cookie: `session=${sessionCookie}` },
     }, env);
@@ -646,5 +606,114 @@ describe('CSRF protection', () => {
       },
     }, env);
     expect(res.status).toBe(200);
+  });
+});
+
+// ============================================================
+// Task 1 (08-02): Legacy route removal + company-scoped embed-code
+// ============================================================
+
+describe('Legacy session-scoped routes removed (404)', () => {
+  let sessionCookie: string;
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('legacy-company', 'Legacy Co', 'legacy@test.com', '#2563eb', 'super-admin');");
+    sessionCookie = await setupAndLogin('legacy@test.com', 'LegacyPass1!');
+  });
+
+  it('GET /api/admin/settings returns 404', async () => {
+    const res = await app.request('/api/admin/settings', {
+      method: 'GET',
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(404);
+  });
+
+  it('PATCH /api/admin/settings returns 404', async () => {
+    const res = await app.request('http://localhost/api/admin/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ primaryColor: '#ff0000' }),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(404);
+  });
+
+  it('GET /api/admin/pricing returns 404', async () => {
+    const res = await app.request('/api/admin/pricing', {
+      method: 'GET',
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(404);
+  });
+
+  it('PUT /api/admin/pricing returns 404', async () => {
+    const res = await app.request('http://localhost/api/admin/pricing', {
+      method: 'PUT',
+      body: JSON.stringify([]),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(404);
+  });
+
+  it('POST /api/admin/logo returns 404', async () => {
+    const formData = new FormData();
+    formData.append('logo', new File(['x'], 'x.png', { type: 'image/png' }));
+    const res = await app.request('http://localhost/api/admin/logo', {
+      method: 'POST',
+      body: formData,
+      headers: { Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(404);
+  });
+
+  it('GET /api/admin/embed-code returns 404', async () => {
+    const res = await app.request('/api/admin/embed-code', {
+      method: 'GET',
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(404);
+  });
+
+  it('POST /api/admin/logout still works (200)', async () => {
+    const logoutCookie = await setupAndLogin('legacy@test.com', 'LegacyPass1!');
+    const res = await app.request('http://localhost/api/admin/logout', {
+      method: 'POST',
+      headers: { Cookie: `session=${logoutCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { success: boolean };
+    expect(body.success).toBe(true);
+  });
+});
+
+describe('GET /api/admin/companies/:companyId/embed-code', () => {
+  let sessionCookie: string;
+  const companyId = 'embed-scoped-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${companyId}', 'Embed Scoped Co', 'embedscoped@test.com', '#2563eb', 'company-admin');`);
+    sessionCookie = await setupAndLogin('embedscoped@test.com', 'EmbedScoped1!');
+  });
+
+  it('returns script tag with correct companyId', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/embed-code`, {
+      method: 'GET',
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { embedCode: string };
+    expect(body.embedCode).toContain(companyId);
+    expect(body.embedCode).toContain('<script');
+    expect(body.embedCode).toContain('roofing-widget.js');
+  });
+
+  it('company-admin cannot get embed-code for another company (403)', async () => {
+    const res = await app.request('/api/admin/companies/other-company/embed-code', {
+      method: 'GET',
+      headers: { Cookie: `session=${sessionCookie}` },
+    }, env);
+    expect(res.status).toBe(403);
   });
 });
