@@ -49,8 +49,8 @@
   5. Leads and companies list queries complete without full-table scans (indexes on leads.companyId, leads.createdAt; endpoints return paginated responses)
 **Plans:** 2/2 plans complete
 Plans:
-- [ ] 08-01-PLAN.md — RBAC roles, login rate limiting, CSRF protection, and session expiry redirect
-- [ ] 08-02-PLAN.md — Legacy route removal, DB indexes, and paginated list endpoints
+- [x] 08-01-PLAN.md — RBAC roles, login rate limiting, CSRF protection, and session expiry redirect
+- [x] 08-02-PLAN.md — Legacy route removal, DB indexes, and paginated list endpoints
 
 ### Phase 9: Lead Management & Analytics
 **Goal**: Admins can view, search, export, and understand their leads; homeowners receive a copy of their estimate
@@ -61,7 +61,10 @@ Plans:
   2. Admin can download a CSV file of their leads with all relevant fields included
   3. After submitting the estimate form, the homeowner receives an email (or PDF) with their estimate details
   4. Admin sees a dashboard panel showing total estimates, total leads, popular materials, and average sqft for their company
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 09-01-PLAN.md — API: leads search/filter, CSV export, stats endpoint, customer estimate email
+- [ ] 09-02-PLAN.md — Admin UI: lead list page, stats dashboard panel, new tabs on company edit
 
 ### Phase 10: Admin & Widget Polish
 **Goal**: Admins have a complete, reliable editing experience and the widget provides clear feedback and smooth navigation
@@ -86,6 +89,6 @@ Plans:
 | 5. Map Infrastructure + Address Autocomplete | v1.1 | 2/2 | Complete | 2026-03-11 |
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 7. Lead Email Integration | v1.1 | 1/1 | Complete | 2026-03-16 |
-| 8. Security Foundation & Tech Debt | 2/2 | Complete   | 2026-03-25 | - |
-| 9. Lead Management & Analytics | v2.0 | 0/? | Not started | - |
+| 8. Security Foundation & Tech Debt | v2.0 | 2/2 | Complete | 2026-03-25 |
+| 9. Lead Management & Analytics | v2.0 | 0/2 | Not started | - |
 | 10. Admin & Widget Polish | v2.0 | 0/? | Not started | - |
