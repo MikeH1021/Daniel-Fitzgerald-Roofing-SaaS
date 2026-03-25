@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import { z } from 'zod';
-import { eq, count, desc } from 'drizzle-orm';
+import { eq, count, desc, like, or, and, gte, lte, sql, avg } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Bindings } from '../types';
 import type { AdminVars } from '../middleware/auth';
@@ -295,25 +295,135 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/svg+xml': '.svg',
 };
 
-// --- Leads list endpoint (paginated) ---
+// --- Leads list endpoint (paginated, with search/filter) ---
+
+function buildLeadsWhereConditions(companyId: string, search?: string, from?: string, to?: string) {
+  const conditions = [eq(leads.companyId, companyId)];
+
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        like(leads.firstName, pattern),
+        like(leads.lastName, pattern),
+        like(leads.email, pattern),
+      )!
+    );
+  }
+
+  if (from) {
+    conditions.push(gte(leads.createdAt, from));
+  }
+
+  if (to) {
+    conditions.push(lte(leads.createdAt, `${to}T23:59:59`));
+  }
+
+  return conditions.length === 1 ? conditions[0] : and(...conditions);
+}
+
+admin.get('/companies/:companyId/leads/csv', companyAccessGuard, async (c) => {
+  const companyId = c.req.param('companyId');
+  const search = c.req.query('search');
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  const db = createDb(c.env.DB);
+  const where = buildLeadsWhereConditions(companyId, search, from, to);
+
+  const rows = await db
+    .select()
+    .from(leads)
+    .where(where)
+    .orderBy(desc(leads.createdAt));
+
+  function escapeCSV(value: string | number | null | undefined): string {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+
+  const header = 'Name,Email,Phone,Address,Sqft,Pitch,Material,Estimate Low,Estimate High,Date';
+  const dataRows = rows.map((lead) =>
+    [
+      escapeCSV(`${lead.firstName} ${lead.lastName}`),
+      escapeCSV(lead.email),
+      escapeCSV(lead.phone),
+      escapeCSV(lead.address),
+      escapeCSV(lead.sqft),
+      escapeCSV(lead.pitch),
+      escapeCSV(lead.material),
+      escapeCSV(lead.estimateLow),
+      escapeCSV(lead.estimateHigh),
+      escapeCSV(lead.createdAt),
+    ].join(',')
+  );
+
+  const csv = [header, ...dataRows].join('\n');
+
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename="leads-${companyId}.csv"`,
+    },
+  });
+});
 
 admin.get('/companies/:companyId/leads', companyAccessGuard, async (c) => {
   const companyId = c.req.param('companyId');
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
   const pageSize = Math.min(100, Math.max(1, parseInt(c.req.query('pageSize') || '20', 10)));
   const offset = (page - 1) * pageSize;
+  const search = c.req.query('search');
+  const from = c.req.query('from');
+  const to = c.req.query('to');
   const db = createDb(c.env.DB);
+  const where = buildLeadsWhereConditions(companyId, search, from, to);
+
   const [rows, totalResult] = await Promise.all([
     db
       .select()
       .from(leads)
-      .where(eq(leads.companyId, companyId))
+      .where(where)
       .orderBy(desc(leads.createdAt))
       .limit(pageSize)
       .offset(offset),
-    db.select({ count: count() }).from(leads).where(eq(leads.companyId, companyId)),
+    db.select({ count: count() }).from(leads).where(where),
   ]);
   return c.json({ data: rows, total: totalResult[0].count, page, pageSize });
+});
+
+// --- Stats endpoint ---
+
+admin.get('/companies/:companyId/stats', companyAccessGuard, async (c) => {
+  const companyId = c.req.param('companyId');
+  const db = createDb(c.env.DB);
+
+  const [countResult, avgResult, materialResult] = await Promise.all([
+    db.select({ count: count() }).from(leads).where(eq(leads.companyId, companyId)),
+    db.select({ avg: avg(leads.sqft) }).from(leads).where(eq(leads.companyId, companyId)),
+    db
+      .select({ material: leads.material, cnt: count() })
+      .from(leads)
+      .where(eq(leads.companyId, companyId))
+      .groupBy(leads.material)
+      .orderBy(desc(count()))
+      .limit(1),
+  ]);
+
+  const totalLeads = countResult[0].count;
+  const rawAvg = avgResult[0].avg;
+  const averageSqft = rawAvg !== null ? Math.round(Number(rawAvg)) : 0;
+  const popularMaterial = materialResult.length > 0 ? materialResult[0].material : null;
+
+  return c.json({
+    totalLeads,
+    totalEstimates: totalLeads,
+    popularMaterial,
+    averageSqft,
+  });
 });
 
 // --- Company-scoped embed-code endpoint ---
