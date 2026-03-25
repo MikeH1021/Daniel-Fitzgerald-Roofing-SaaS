@@ -4,7 +4,7 @@ import app from '../src/index';
 
 async function seedAdminData(db: D1Database) {
   // D1 exec requires single-line statements
-  await db.exec("CREATE TABLE IF NOT EXISTS companies (id text PRIMARY KEY NOT NULL, name text NOT NULL, email text NOT NULL, slug text, password_hash text, logo_url text, primary_color text DEFAULT '#2563eb', role text NOT NULL DEFAULT 'company-admin', created_at text DEFAULT (datetime('now')), updated_at text DEFAULT (datetime('now')));");
+  await db.exec("CREATE TABLE IF NOT EXISTS companies (id text PRIMARY KEY NOT NULL, name text NOT NULL, email text NOT NULL, slug text, password_hash text, logo_url text, primary_color text DEFAULT '#2563eb', role text NOT NULL DEFAULT 'company-admin', created_at text DEFAULT (datetime('now')), updated_at text DEFAULT (datetime('now')), archived_at text);");
   await db.exec("CREATE TABLE IF NOT EXISTS admin_sessions (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, expires_at text NOT NULL, created_at text DEFAULT (datetime('now')), FOREIGN KEY (company_id) REFERENCES companies(id));");
   await db.exec("CREATE TABLE IF NOT EXISTS pricing_overrides (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, material_key text NOT NULL, cost_low real, cost_high real, pitch_flat real, pitch_low real, pitch_medium real, pitch_steep real, FOREIGN KEY (company_id) REFERENCES companies(id));");
 }
@@ -1012,14 +1012,13 @@ describe('GET /api/admin/companies/:companyId/leads/csv', () => {
 // Task 1 (10-01): Company archive/restore endpoints
 // ============================================================
 
-describe('PATCH /api/admin/companies/:companyId/archive and restore', () => {
+describe('PATCH /api/admin/companies/:companyId/archive - archive endpoint', () => {
   let superAdminCookie: string;
   const superAdminId = 'archive-super-admin';
   const archivableId = 'archive-target-company';
 
   beforeAll(async () => {
     await seedAdminData(env.DB);
-    await env.DB.exec(`ALTER TABLE companies ADD COLUMN archived_at text;`).catch(() => {}); // ignore if already exists
     await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${superAdminId}', 'Archive Super', 'archivesuper@test.com', '#2563eb', 'super-admin');`);
     await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${archivableId}', 'Archive Target Co', 'archivetarget@test.com', '#2563eb');`);
     superAdminCookie = await setupAndLogin('archivesuper@test.com', 'ArchiveSuper1!');
@@ -1035,13 +1034,58 @@ describe('PATCH /api/admin/companies/:companyId/archive and restore', () => {
     expect(body.success).toBe(true);
   });
 
+  it('company-admin cannot archive a company (403)', async () => {
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('archive-co-admin', 'Archive CoAdmin', 'archivecoadmin@test.com', '#2563eb', 'company-admin');");
+    const coAdminCookie = await setupAndLogin('archivecoadmin@test.com', 'ArchiveCoAdmin1!');
+    const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${coAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('PATCH /api/admin/companies/:companyId/archive - re-archive returns 409', () => {
+  let superAdminCookie: string;
+  const superAdminId = 'archive2-super-admin';
+  const archivableId = 'archive2-target-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${superAdminId}', 'Archive2 Super', 'archivesuper2@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${archivableId}', 'Archive2 Target Co', 'archivetarget2@test.com', '#2563eb');`);
+    superAdminCookie = await setupAndLogin('archivesuper2@test.com', 'ArchiveSuper2!');
+    // Pre-archive the company
+    await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+  });
+
   it('PATCH /archive on already-archived company returns 409', async () => {
-    // Already archived from previous test
     const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
       method: 'PATCH',
       headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(409);
+  });
+});
+
+describe('GET /api/admin/companies - archive filtering', () => {
+  let superAdminCookie: string;
+  const superAdminId = 'filter-super-admin';
+  const archivableId = 'filter-archive-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${superAdminId}', 'Filter Super', 'filtersuper@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${archivableId}', 'Filter Archive Co', 'filterarchive@test.com', '#2563eb');`);
+    superAdminCookie = await setupAndLogin('filtersuper@test.com', 'FilterSuper1!');
+    // Pre-archive the company in beforeAll so all tests see consistent state
+    await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
   });
 
   it('GET /api/admin/companies excludes archived companies by default', async () => {
@@ -1066,6 +1110,34 @@ describe('PATCH /api/admin/companies/:companyId/archive and restore', () => {
     expect(ids).toContain(archivableId);
   });
 
+  it('archived company settings still accessible via GET /settings', async () => {
+    const res = await app.request(`/api/admin/companies/${archivableId}/settings`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { name: string };
+    expect(body.name).toBe('Filter Archive Co');
+  });
+});
+
+describe('PATCH /api/admin/companies/:companyId/restore', () => {
+  let superAdminCookie: string;
+  const superAdminId = 'restore-super-admin';
+  const archivableId = 'restore-target-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${superAdminId}', 'Restore Super', 'restoresuper@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${archivableId}', 'Restore Target Co', 'restoretarget@test.com', '#2563eb');`);
+    superAdminCookie = await setupAndLogin('restoresuper@test.com', 'RestoreSuper1!');
+    // Pre-archive the company
+    await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+  });
+
   it('PATCH /restore returns 200 and { success: true }', async () => {
     const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/restore`, {
       method: 'PATCH',
@@ -1075,40 +1147,27 @@ describe('PATCH /api/admin/companies/:companyId/archive and restore', () => {
     const body = await res.json() as { success: boolean };
     expect(body.success).toBe(true);
   });
+});
+
+describe('PATCH /api/admin/companies/:companyId/restore - re-restore returns 409', () => {
+  let superAdminCookie: string;
+  const superAdminId = 'restore2-super-admin';
+  const archivableId = 'restore2-target-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${superAdminId}', 'Restore2 Super', 'restoresuper2@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${archivableId}', 'Restore2 Target Co', 'restoretarget2@test.com', '#2563eb');`);
+    superAdminCookie = await setupAndLogin('restoresuper2@test.com', 'RestoreSuper22!');
+    // Company is NOT archived — restore should return 409
+  });
 
   it('PATCH /restore on non-archived company returns 409', async () => {
-    // Already restored from previous test
     const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/restore`, {
       method: 'PATCH',
       headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
     }, env);
     expect(res.status).toBe(409);
-  });
-
-  it('archived company settings still accessible via GET /settings', async () => {
-    // Archive again
-    await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
-      method: 'PATCH',
-      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
-    }, env);
-    const res = await app.request(`/api/admin/companies/${archivableId}/settings`, {
-      method: 'GET',
-      headers: { Cookie: `session=${superAdminCookie}` },
-    }, env);
-    expect(res.status).toBe(200);
-    const body = await res.json() as { name: string };
-    expect(body.name).toBe('Archive Target Co');
-  });
-
-  it('company-admin cannot archive a company (403)', async () => {
-    // Create a company-admin user
-    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('archive-co-admin', 'Archive CoAdmin', 'archivecoadmin@test.com', '#2563eb', 'company-admin');");
-    const coAdminCookie = await setupAndLogin('archivecoadmin@test.com', 'ArchiveCoAdmin1!');
-    const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
-      method: 'PATCH',
-      headers: { Cookie: `session=${coAdminCookie}`, Origin: 'http://localhost' },
-    }, env);
-    expect(res.status).toBe(403);
   });
 });
 

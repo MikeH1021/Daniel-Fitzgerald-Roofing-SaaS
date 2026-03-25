@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import { z } from 'zod';
-import { eq, count, desc, like, or, and, gte, lte, sql, avg } from 'drizzle-orm';
+import { eq, count, desc, like, or, and, gte, lte, sql, avg, isNull } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import type { Bindings } from '../types';
 import type { AdminVars } from '../middleware/auth';
@@ -24,13 +24,21 @@ const settingsSchema = z.object({
 
 const pricingItemSchema = z.object({
   materialKey: z.enum(['3-tab', 'architectural', 'standing-seam-metal']),
-  costLow: z.number().optional(),
-  costHigh: z.number().optional(),
-  pitchFlat: z.number().optional(),
-  pitchLow: z.number().optional(),
-  pitchMedium: z.number().optional(),
-  pitchSteep: z.number().optional(),
-});
+  costLow: z.number().nonnegative('Cost must be non-negative').max(100, 'Cost per sqft must be under $100').optional(),
+  costHigh: z.number().nonnegative('Cost must be non-negative').max(100, 'Cost per sqft must be under $100').optional(),
+  pitchFlat: z.number().nonnegative('Pitch multiplier must be non-negative').max(5, 'Pitch multiplier must be under 5.0').optional(),
+  pitchLow: z.number().nonnegative('Pitch multiplier must be non-negative').max(5, 'Pitch multiplier must be under 5.0').optional(),
+  pitchMedium: z.number().nonnegative('Pitch multiplier must be non-negative').max(5, 'Pitch multiplier must be under 5.0').optional(),
+  pitchSteep: z.number().nonnegative('Pitch multiplier must be non-negative').max(5, 'Pitch multiplier must be under 5.0').optional(),
+}).refine(
+  (data) => {
+    if (data.costLow !== undefined && data.costHigh !== undefined) {
+      return data.costLow < data.costHigh;
+    }
+    return true;
+  },
+  { message: 'cost_low must be less than cost_high' }
+);
 
 // --- Unprotected routes ---
 
@@ -170,21 +178,26 @@ admin.get('/companies', superAdminOnly, async (c) => {
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
   const pageSize = Math.min(100, Math.max(1, parseInt(c.req.query('pageSize') || '20', 10)));
   const offset = (page - 1) * pageSize;
+  const includeArchived = c.req.query('includeArchived') === 'true';
   const db = createDb(c.env.DB);
+
+  const baseSelect = {
+    id: companies.id,
+    name: companies.name,
+    slug: companies.slug,
+    email: companies.email,
+    logoUrl: companies.logoUrl,
+    primaryColor: companies.primaryColor,
+    archivedAt: companies.archivedAt,
+  };
+
   const [rows, totalResult] = await Promise.all([
-    db
-      .select({
-        id: companies.id,
-        name: companies.name,
-        slug: companies.slug,
-        email: companies.email,
-        logoUrl: companies.logoUrl,
-        primaryColor: companies.primaryColor,
-      })
-      .from(companies)
-      .limit(pageSize)
-      .offset(offset),
-    db.select({ count: count() }).from(companies),
+    includeArchived
+      ? db.select(baseSelect).from(companies).limit(pageSize).offset(offset)
+      : db.select(baseSelect).from(companies).where(isNull(companies.archivedAt)).limit(pageSize).offset(offset),
+    includeArchived
+      ? db.select({ count: count() }).from(companies)
+      : db.select({ count: count() }).from(companies).where(isNull(companies.archivedAt)),
   ]);
   return c.json({ data: rows, total: totalResult[0].count, page, pageSize });
 });
@@ -212,6 +225,27 @@ admin.patch('/companies/:companyId', companyAccessGuard, zValidator('json', upda
   if (Object.keys(updates).length > 0) {
     await db.update(companies).set(updates).where(eq(companies.id, companyId));
   }
+  return c.json({ success: true });
+});
+
+// Archive/restore endpoints (super-admin only)
+admin.patch('/companies/:companyId/archive', superAdminOnly, async (c) => {
+  const companyId = c.req.param('companyId');
+  const db = createDb(c.env.DB);
+  const rows = await db.select({ archivedAt: companies.archivedAt }).from(companies).where(eq(companies.id, companyId)).limit(1);
+  if (rows.length === 0) return c.json({ error: 'Company not found' }, 404);
+  if (rows[0].archivedAt !== null) return c.json({ error: 'Company is already archived' }, 409);
+  await db.update(companies).set({ archivedAt: sql`(datetime('now'))` }).where(eq(companies.id, companyId));
+  return c.json({ success: true });
+});
+
+admin.patch('/companies/:companyId/restore', superAdminOnly, async (c) => {
+  const companyId = c.req.param('companyId');
+  const db = createDb(c.env.DB);
+  const rows = await db.select({ archivedAt: companies.archivedAt }).from(companies).where(eq(companies.id, companyId)).limit(1);
+  if (rows.length === 0) return c.json({ error: 'Company not found' }, 404);
+  if (rows[0].archivedAt === null) return c.json({ error: 'Company is not archived' }, 409);
+  await db.update(companies).set({ archivedAt: null }).where(eq(companies.id, companyId));
   return c.json({ success: true });
 });
 
@@ -247,7 +281,12 @@ admin.get('/companies/:companyId/pricing', companyAccessGuard, async (c) => {
   return c.json(rows);
 });
 
-admin.put('/companies/:companyId/pricing', companyAccessGuard, zValidator('json', z.array(pricingItemSchema)), async (c) => {
+admin.put('/companies/:companyId/pricing', companyAccessGuard, zValidator('json', z.array(pricingItemSchema), (result, c) => {
+  if (!result.success) {
+    const firstError = result.error.errors[0];
+    return c.json({ error: firstError.message, details: result.error.errors.map((e) => ({ field: e.path.join('.'), message: e.message })) }, 400);
+  }
+}), async (c) => {
   const overrides = c.req.valid('json');
   const companyId = c.req.param('companyId');
   const db = createDb(c.env.DB);
