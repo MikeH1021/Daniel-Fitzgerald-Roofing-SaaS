@@ -4,14 +4,16 @@ import { BrandingSettings } from '../components/BrandingSettings';
 import { PricingSettings } from '../components/PricingSettings';
 import { EmbedCode } from '../components/EmbedCode';
 import { LeadList } from './LeadList';
+import { StatsPanel } from '../components/StatsPanel';
 
-type Tab = 'branding' | 'pricing' | 'embed' | 'leads';
+type Tab = 'branding' | 'pricing' | 'embed' | 'leads' | 'stats';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'branding', label: 'Branding' },
   { key: 'pricing', label: 'Pricing' },
   { key: 'embed', label: 'Embed' },
   { key: 'leads', label: 'Leads' },
+  { key: 'stats', label: 'Stats' },
 ];
 
 export function EditCompany({ companyId }: { companyId: string }) {
@@ -79,6 +81,7 @@ export function EditCompany({ companyId }: { companyId: string }) {
         {activeTab === 'pricing' && <PricingSettings companyId={companyId} />}
         {activeTab === 'embed' && <EmbedCode companyId={companyId} />}
         {activeTab === 'leads' && <LeadList companyId={companyId} />}
+        {activeTab === 'stats' && <StatsPanel companyId={companyId} />}
       </div>
     </div>
   );
