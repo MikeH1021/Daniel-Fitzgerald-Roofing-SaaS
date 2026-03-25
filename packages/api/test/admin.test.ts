@@ -834,3 +834,251 @@ describe('GET /api/admin/companies/:companyId/leads - paginated response', () =>
     expect(body.total).toBe(5);
   });
 });
+
+// ============================================================
+// Task 1 (09-01): Search/filter, CSV export, and stats endpoints
+// ============================================================
+
+describe('GET /api/admin/companies/:companyId/leads - search and date filter', () => {
+  let superAdminCookie: string;
+  const companyId = 'leads-search-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${companyId}', 'Search Co', 'leadsearch@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, address text, created_at text DEFAULT (datetime('now')));");
+    // Seed varied leads
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high, created_at) VALUES ('sl-1', '${companyId}', 'John', 'Smith', 'john.smith@example.com', '5550001', 1, 'consent', 1500, 'medium', 'architectural', 5000, 7000, '2026-01-15 10:00:00');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high, created_at) VALUES ('sl-2', '${companyId}', 'Jane', 'Doe', 'jane.doe@example.com', '5550002', 1, 'consent', 2000, 'steep', '3-tab', 6000, 8000, '2026-02-10 10:00:00');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high, created_at) VALUES ('sl-3', '${companyId}', 'Alice', 'Johnson', 'alice@gmail.com', '5550003', 1, 'consent', 2500, 'flat', 'standing-seam-metal', 9000, 12000, '2026-03-05 10:00:00');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high, created_at) VALUES ('sl-4', '${companyId}', 'Bob', 'Smith', 'bob.smith@example.com', '5550004', 1, 'consent', 1800, 'low', 'architectural', 5500, 7500, '2026-03-20 10:00:00');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high, created_at) VALUES ('sl-5', '${companyId}', 'Charlie', 'Brown', 'charlie@example.com', '5550005', 1, 'consent', 3000, 'medium', 'architectural', 10000, 13000, '2026-03-22 10:00:00');`);
+    superAdminCookie = await setupAndLogin('leadsearch@test.com', 'LeadSearch1!');
+  });
+
+  it('search=john returns leads matching first name (case-insensitive)', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?search=john`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: Array<{ firstName: string; lastName: string; email: string }>; total: number };
+    // Matches "John" (firstName) and "Alice Johnson" (lastName)
+    expect(body.total).toBeGreaterThanOrEqual(2);
+    const names = body.data.map((l) => `${l.firstName} ${l.lastName}`);
+    expect(names.some((n) => n.includes('John'))).toBe(true);
+  });
+
+  it('search=smith returns leads matching last name', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?search=smith`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: Array<{ lastName: string }>; total: number };
+    expect(body.total).toBe(2); // John Smith and Bob Smith
+    expect(body.data.every((l) => l.lastName === 'Smith')).toBe(true);
+  });
+
+  it('search=gmail returns leads matching email', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?search=gmail`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: Array<{ email: string }>; total: number };
+    expect(body.total).toBe(1);
+    expect(body.data[0].email).toBe('alice@gmail.com');
+  });
+
+  it('from=2026-02-01 returns only leads on or after that date', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?from=2026-02-01`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { total: number };
+    expect(body.total).toBe(4); // Feb 10, Mar 5, Mar 20, Mar 22
+  });
+
+  it('to=2026-02-28 returns only leads on or before that date', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?to=2026-02-28`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { total: number };
+    expect(body.total).toBe(2); // Jan 15, Feb 10
+  });
+
+  it('from+to range filters correctly', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?from=2026-02-01&to=2026-02-28`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { total: number };
+    expect(body.total).toBe(1); // Feb 10 only
+  });
+
+  it('search+from combo filters correctly', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads?search=smith&from=2026-03-01`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: Array<{ firstName: string }>; total: number };
+    expect(body.total).toBe(1); // Bob Smith (Mar 20) — John Smith is Jan
+    expect(body.data[0].firstName).toBe('Bob');
+  });
+
+  it('no filters returns all leads (backward compatible)', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { total: number };
+    expect(body.total).toBe(5);
+  });
+});
+
+describe('GET /api/admin/companies/:companyId/leads/csv', () => {
+  let superAdminCookie: string;
+  const companyId = 'leads-csv-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${companyId}', 'CSV Co', 'leadcsv@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, address text, created_at text DEFAULT (datetime('now')));");
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high, address, created_at) VALUES ('csv-1', '${companyId}', 'Alice', 'Walker', 'alice@csv.com', '5550001', 1, 'consent', 1500, 'medium', 'architectural', 5000, 7000, '123 Main St', '2026-01-10 10:00:00');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high, address, created_at) VALUES ('csv-2', '${companyId}', 'Bob', 'Builder', 'bob@csv.com', '5550002', 1, 'consent', 2000, 'steep', '3-tab', 6000, 8000, NULL, '2026-02-15 10:00:00');`);
+    superAdminCookie = await setupAndLogin('leadcsv@test.com', 'LeadCsv1!');
+  });
+
+  it('returns 200 with Content-Type: text/csv', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads/csv`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/csv');
+  });
+
+  it('CSV has correct header row', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads/csv`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    const text = await res.text();
+    const firstLine = text.split('\n')[0];
+    expect(firstLine).toBe('Name,Email,Phone,Address,Sqft,Pitch,Material,Estimate Low,Estimate High,Date');
+  });
+
+  it('CSV contains lead data rows', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads/csv`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    const text = await res.text();
+    expect(text).toContain('Alice Walker');
+    expect(text).toContain('alice@csv.com');
+    expect(text).toContain('Bob Builder');
+  });
+
+  it('returns Content-Disposition attachment header', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/leads/csv`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    const disposition = res.headers.get('content-disposition');
+    expect(disposition).toContain('attachment');
+    expect(disposition).toContain('.csv');
+  });
+
+  it('company-admin cannot get CSV for another company (403)', async () => {
+    // Create a separate company-admin user
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('csv-other-company', 'CSV Other Co', 'csvother@test.com', '#2563eb', 'company-admin');");
+    const otherCookie = await setupAndLogin('csvother@test.com', 'CsvOther1!');
+    const res = await app.request(`/api/admin/companies/${companyId}/leads/csv`, {
+      method: 'GET',
+      headers: { Cookie: `session=${otherCookie}` },
+    }, env);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('GET /api/admin/companies/:companyId/stats', () => {
+  let superAdminCookie: string;
+  const companyId = 'stats-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${companyId}', 'Stats Co', 'stats@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS leads (id text PRIMARY KEY NOT NULL, company_id text NOT NULL, first_name text NOT NULL, last_name text NOT NULL, email text NOT NULL, phone text NOT NULL, consent_given integer NOT NULL, consent_text text NOT NULL, sqft real NOT NULL, pitch text NOT NULL, material text NOT NULL, estimate_low real NOT NULL, estimate_high real NOT NULL, address text, created_at text DEFAULT (datetime('now')));");
+    // 3 architectural, 1 3-tab, 1 standing-seam-metal
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high) VALUES ('stat-1', '${companyId}', 'A', 'A', 'a@test.com', '1', 1, 'c', 1000, 'flat', 'architectural', 3000, 4000);`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high) VALUES ('stat-2', '${companyId}', 'B', 'B', 'b@test.com', '2', 1, 'c', 2000, 'medium', 'architectural', 6000, 8000);`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high) VALUES ('stat-3', '${companyId}', 'C', 'C', 'c@test.com', '3', 1, 'c', 3000, 'steep', 'architectural', 9000, 12000);`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high) VALUES ('stat-4', '${companyId}', 'D', 'D', 'd@test.com', '4', 1, 'c', 1500, 'low', '3-tab', 4000, 5500);`);
+    await env.DB.exec(`INSERT OR REPLACE INTO leads (id, company_id, first_name, last_name, email, phone, consent_given, consent_text, sqft, pitch, material, estimate_low, estimate_high) VALUES ('stat-5', '${companyId}', 'E', 'E', 'e@test.com', '5', 1, 'c', 2500, 'medium', 'standing-seam-metal', 8000, 11000);`);
+    superAdminCookie = await setupAndLogin('stats@test.com', 'StatsPass1!');
+  });
+
+  it('returns { totalLeads, totalEstimates, popularMaterial, averageSqft }', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/stats`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { totalLeads: number; totalEstimates: number; popularMaterial: string; averageSqft: number };
+    expect(body).toHaveProperty('totalLeads');
+    expect(body).toHaveProperty('totalEstimates');
+    expect(body).toHaveProperty('popularMaterial');
+    expect(body).toHaveProperty('averageSqft');
+  });
+
+  it('totalLeads equals 5', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/stats`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    const body = await res.json() as { totalLeads: number; totalEstimates: number };
+    expect(body.totalLeads).toBe(5);
+    expect(body.totalEstimates).toBe(5);
+  });
+
+  it('popularMaterial is architectural (most frequent)', async () => {
+    const res = await app.request(`/api/admin/companies/${companyId}/stats`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    const body = await res.json() as { popularMaterial: string };
+    expect(body.popularMaterial).toBe('architectural');
+  });
+
+  it('averageSqft is rounded to nearest integer (2000)', async () => {
+    // avg(1000+2000+3000+1500+2500) = avg(10000) = 2000
+    const res = await app.request(`/api/admin/companies/${companyId}/stats`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    const body = await res.json() as { averageSqft: number };
+    expect(body.averageSqft).toBe(2000);
+  });
+
+  it('returns zeros and null for company with no leads', async () => {
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('empty-stats-company', 'Empty Stats Co', 'emptystats@test.com', '#2563eb', 'super-admin');");
+    const emptyCookie = await setupAndLogin('emptystats@test.com', 'EmptyStats1!');
+    const res = await app.request(`/api/admin/companies/empty-stats-company/stats`, {
+      method: 'GET',
+      headers: { Cookie: `session=${emptyCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { totalLeads: number; totalEstimates: number; popularMaterial: null; averageSqft: number };
+    expect(body.totalLeads).toBe(0);
+    expect(body.totalEstimates).toBe(0);
+    expect(body.popularMaterial).toBeNull();
+    expect(body.averageSqft).toBe(0);
+  });
+});
