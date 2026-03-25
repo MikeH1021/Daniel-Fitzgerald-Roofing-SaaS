@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Admin Platform & Lead Management
 status: executing
-stopped_at: Completed 10-03-PLAN.md (Widget UX - Back Navigation and Error Messages)
-last_updated: "2026-03-25T00:58:30.603Z"
+stopped_at: Completed 10-01-PLAN.md (Archive/Restore & Pricing Validation)
+last_updated: "2026-03-25T01:02:05.987Z"
 last_activity: "2026-03-25 — 09-01 complete: leads search/filter, CSV export, stats endpoint, customer estimate email"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 15
 ---
 
@@ -58,6 +58,9 @@ Recent decisions relevant to v2.0:
 - [Phase 10]: goToStep() sets currentStep without touching formData so contact info survives roof detail edits
 - [Phase 10]: estimateResult cleared on Edit Roof Details to force re-submission after edits
 - [Phase 10]: Error body parsed before status-based fallback so API-provided messages take precedence
+- [Phase 10-admin-widget-polish]: Archive uses archivedAt nullable timestamp (soft-delete), not a boolean flag
+- [Phase 10-admin-widget-polish]: GET /companies default excludes archived; opt-in via ?includeArchived=true
+- [Phase 10-admin-widget-polish]: Pricing validation: costLow < costHigh refine, nonnegative(), max(100) for costs, max(5) for pitch
 
 ### Pending Todos
 
@@ -69,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T00:58:30.599Z
-Stopped at: Completed 10-03-PLAN.md (Widget UX - Back Navigation and Error Messages)
+Last session: 2026-03-25T01:02:05.982Z
+Stopped at: Completed 10-01-PLAN.md (Archive/Restore & Pricing Validation)
 Resume file: None

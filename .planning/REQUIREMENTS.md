@@ -22,12 +22,12 @@ Requirements for v2.0 Admin Platform & Lead Management. Each maps to roadmap pha
 
 ### Company Management
 
-- [ ] **COMP-01**: Admin can soft-delete/archive a company (hides from list, preserves data)
+- [x] **COMP-01**: Admin can soft-delete/archive a company (hides from list, preserves data)
 - [ ] **COMP-02**: Admin sees live widget preview in branding editor that updates as settings change
 
 ### Pricing
 
-- [ ] **PRICE-01**: Pricing inputs validate that cost_low < cost_high, no negatives, and values are within sensible ranges
+- [x] **PRICE-01**: Pricing inputs validate that cost_low < cost_high, no negatives, and values are within sensible ranges
 
 ### Analytics
 
@@ -83,9 +83,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 8 | Complete |
 | AUTH-03 | Phase 8 | Complete |
 | AUTH-04 | Phase 8 | Complete |
-| COMP-01 | Phase 10 | Pending |
+| COMP-01 | Phase 10 | Complete |
 | COMP-02 | Phase 10 | Pending |
-| PRICE-01 | Phase 10 | Pending |
+| PRICE-01 | Phase 10 | Complete |
 | STATS-01 | Phase 9 | Complete |
 | WID-01 | Phase 10 | Complete |
 | WID-02 | Phase 10 | Complete |
