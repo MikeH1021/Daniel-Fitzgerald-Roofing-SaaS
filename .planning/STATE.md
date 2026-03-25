@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Admin Platform & Lead Management
-status: ready_to_plan
-stopped_at: Roadmap created, ready to plan Phase 8
-last_updated: "2026-03-24"
-last_activity: 2026-03-24 — v2.0 roadmap created (3 phases, 16 requirements mapped)
+status: in_progress
+stopped_at: Completed 08-01-PLAN.md — RBAC, CSRF, rate limiting, session expiry redirect
+last_updated: "2026-03-25"
+last_activity: 2026-03-25 — 08-01 complete (RBAC, CSRF, rate limiting, frontend 401 redirect)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 1
+  completed_plans: 1
+  percent: 10
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 ## Current Position
 
 Phase: 8 of 10 (Security Foundation & Tech Debt)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-24 — v2.0 roadmap created, 3 phases covering 16 requirements
+Plan: 1 of 1 (complete)
+Status: In progress
+Last activity: 2026-03-25 — 08-01 complete: RBAC enforced server-side, CSRF protection, login rate limiting, frontend 401 redirect
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Accumulated Context
 
@@ -42,6 +42,10 @@ Recent decisions relevant to v2.0:
 - RBAC must gate API endpoints, not just UI — company-admin must be enforced server-side
 - CSRF protection applies to all state-changing endpoints (POST/PUT/DELETE) in admin
 - Pagination required before lead list ships — DEBT-03 bundled with Phase 8 to avoid rework
+- CSRF token = first 16 chars of session token (session is nanoid(32)); avoids separate token store
+- Rate limiter uses CF Workers binding in production with in-memory Map fallback for testability
+- Role stored in companies table; validateSession JOINs to return role in single query
+- Legacy session-scoped admin API methods removed from frontend; all operations use company-scoped routes
 
 ### Pending Todos
 
@@ -53,6 +57,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24
-Stopped at: Roadmap created, ready to plan Phase 8
+Last session: 2026-03-25
+Stopped at: Completed 08-01-PLAN.md — RBAC, CSRF, rate limiting, session expiry redirect
 Resume file: None

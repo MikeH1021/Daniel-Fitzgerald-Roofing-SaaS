@@ -47,7 +47,7 @@
   3. When a session expires, the user is automatically redirected to the login page instead of seeing a silent error
   4. Legacy session-scoped admin routes (/admin/settings, /admin/pricing, /admin/logo) return 404 or redirect, with no broken functionality
   5. Leads and companies list queries complete without full-table scans (indexes on leads.companyId, leads.createdAt; endpoints return paginated responses)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 08-01-PLAN.md — RBAC roles, login rate limiting, CSRF protection, and session expiry redirect
 - [ ] 08-02-PLAN.md — Legacy route removal, DB indexes, and paginated list endpoints
@@ -86,6 +86,6 @@ Plans:
 | 5. Map Infrastructure + Address Autocomplete | v1.1 | 2/2 | Complete | 2026-03-11 |
 | 6. Polygon Drawing + sqft Auto-fill + UX | v1.1 | 2/2 | Complete | 2026-03-16 |
 | 7. Lead Email Integration | v1.1 | 1/1 | Complete | 2026-03-16 |
-| 8. Security Foundation & Tech Debt | v2.0 | 0/2 | In Progress | - |
+| 8. Security Foundation & Tech Debt | 1/2 | In Progress|  | - |
 | 9. Lead Management & Analytics | v2.0 | 0/? | Not started | - |
 | 10. Admin & Widget Polish | v2.0 | 0/? | Not started | - |

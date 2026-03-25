@@ -15,10 +15,10 @@ Requirements for v2.0 Admin Platform & Lead Management. Each maps to roadmap pha
 
 ### Auth & Security
 
-- [ ] **AUTH-01**: Super-admin role can manage all companies; company-admin role can only access their own company
-- [ ] **AUTH-02**: Login endpoint is rate-limited to prevent brute force attacks
-- [ ] **AUTH-03**: Session expiry triggers automatic redirect to login instead of silent 401 errors
-- [ ] **AUTH-04**: CSRF protection on all state-changing form submissions
+- [x] **AUTH-01**: Super-admin role can manage all companies; company-admin role can only access their own company
+- [x] **AUTH-02**: Login endpoint is rate-limited to prevent brute force attacks
+- [x] **AUTH-03**: Session expiry triggers automatic redirect to login instead of silent 401 errors
+- [x] **AUTH-04**: CSRF protection on all state-changing form submissions
 
 ### Company Management
 
@@ -79,10 +79,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LEAD-01 | Phase 9 | Pending |
 | LEAD-02 | Phase 9 | Pending |
 | LEAD-03 | Phase 9 | Pending |
-| AUTH-01 | Phase 8 | Pending |
-| AUTH-02 | Phase 8 | Pending |
-| AUTH-03 | Phase 8 | Pending |
-| AUTH-04 | Phase 8 | Pending |
+| AUTH-01 | Phase 8 | Complete |
+| AUTH-02 | Phase 8 | Complete |
+| AUTH-03 | Phase 8 | Complete |
+| AUTH-04 | Phase 8 | Complete |
 | COMP-01 | Phase 10 | Pending |
 | COMP-02 | Phase 10 | Pending |
 | PRICE-01 | Phase 10 | Pending |
