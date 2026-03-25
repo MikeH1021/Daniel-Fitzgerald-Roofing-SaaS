@@ -32,3 +32,7 @@ export function nextStep() {
 export function prevStep() {
   currentStep.value = Math.max(currentStep.value - 1, 0);
 }
+
+export function goToStep(step: number) {
+  currentStep.value = Math.max(0, Math.min(step, 2));
+}

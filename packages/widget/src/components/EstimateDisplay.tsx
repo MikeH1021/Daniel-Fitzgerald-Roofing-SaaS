@@ -1,5 +1,5 @@
 import { h } from 'preact';
-import { estimateResult, currentStep, isLoading, formData } from '../state/form';
+import { estimateResult, currentStep, isLoading, formData, goToStep } from '../state/form';
 
 function formatCurrency(amount: number): string {
   return '$' + amount.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -7,12 +7,7 @@ function formatCurrency(amount: number): string {
 
 export function EstimateDisplay() {
   if (isLoading.value) {
-    return (
-      <div>
-        <div class="rc-step-title">Your Estimate</div>
-        <div class="rc-loading">Calculating your estimate...</div>
-      </div>
-    );
+    return <div class="rc-loading">Calculating your estimate...</div>;
   }
 
   const result = estimateResult.value;
@@ -33,32 +28,45 @@ export function EstimateDisplay() {
     };
   }
 
+  function handleEditRoof() {
+    estimateResult.value = null;
+    goToStep(0);
+  }
+
   if (!result) {
     return (
       <div>
-        <div class="rc-step-title">Your Estimate</div>
         <div class="rc-loading">No estimate available yet.</div>
-        <button class="rc-btn-secondary" onClick={handleStartOver}>
-          Start Over
-        </button>
+        <button class="rc-btn-secondary" onClick={handleStartOver}>Start Over</button>
       </div>
     );
   }
 
   return (
     <div>
-      <div class="rc-step-title">Your Estimate</div>
-      <div class="rc-estimate-range">
-        {formatCurrency(result.estimateLow)} - {formatCurrency(result.estimateHigh)}
+      <div class="rc-estimate-result">
+        <div class="rc-estimate-badge">Estimated Cost Range</div>
+        <div class="rc-estimate-range">
+          <span>{formatCurrency(result.estimateLow)}</span> &ndash; <span>{formatCurrency(result.estimateHigh)}</span>
+        </div>
       </div>
+
       <div class="rc-disclaimer">{result.disclaimer}</div>
-      <button
-        class="rc-btn-secondary"
-        onClick={handleStartOver}
-        style={{ marginTop: '24px' }}
-      >
-        Start Over
-      </button>
+
+      <div style={{ marginTop: '20px', textAlign: 'center' }}>
+        <button class="rc-btn-secondary" onClick={handleEditRoof}>
+          Edit Roof Details
+        </button>
+        <div style={{ marginTop: '12px' }}>
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); handleStartOver(); }}
+            style={{ fontSize: '13px', color: 'inherit', opacity: 0.7 }}
+          >
+            Get Another Estimate
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
