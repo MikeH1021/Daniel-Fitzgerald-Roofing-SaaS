@@ -1008,6 +1008,197 @@ describe('GET /api/admin/companies/:companyId/leads/csv', () => {
   });
 });
 
+// ============================================================
+// Task 1 (10-01): Company archive/restore endpoints
+// ============================================================
+
+describe('PATCH /api/admin/companies/:companyId/archive and restore', () => {
+  let superAdminCookie: string;
+  const superAdminId = 'archive-super-admin';
+  const archivableId = 'archive-target-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`ALTER TABLE companies ADD COLUMN archived_at text;`).catch(() => {}); // ignore if already exists
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('${superAdminId}', 'Archive Super', 'archivesuper@test.com', '#2563eb', 'super-admin');`);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${archivableId}', 'Archive Target Co', 'archivetarget@test.com', '#2563eb');`);
+    superAdminCookie = await setupAndLogin('archivesuper@test.com', 'ArchiveSuper1!');
+  });
+
+  it('PATCH /archive returns 200 and { success: true }', async () => {
+    const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { success: boolean };
+    expect(body.success).toBe(true);
+  });
+
+  it('PATCH /archive on already-archived company returns 409', async () => {
+    // Already archived from previous test
+    const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(409);
+  });
+
+  it('GET /api/admin/companies excludes archived companies by default', async () => {
+    const res = await app.request('/api/admin/companies', {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: Array<{ id: string }> };
+    const ids = body.data.map((c) => c.id);
+    expect(ids).not.toContain(archivableId);
+  });
+
+  it('GET /api/admin/companies?includeArchived=true includes archived companies', async () => {
+    const res = await app.request('/api/admin/companies?includeArchived=true', {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { data: Array<{ id: string }> };
+    const ids = body.data.map((c) => c.id);
+    expect(ids).toContain(archivableId);
+  });
+
+  it('PATCH /restore returns 200 and { success: true }', async () => {
+    const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/restore`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { success: boolean };
+    expect(body.success).toBe(true);
+  });
+
+  it('PATCH /restore on non-archived company returns 409', async () => {
+    // Already restored from previous test
+    const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/restore`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(409);
+  });
+
+  it('archived company settings still accessible via GET /settings', async () => {
+    // Archive again
+    await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${superAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    const res = await app.request(`/api/admin/companies/${archivableId}/settings`, {
+      method: 'GET',
+      headers: { Cookie: `session=${superAdminCookie}` },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { name: string };
+    expect(body.name).toBe('Archive Target Co');
+  });
+
+  it('company-admin cannot archive a company (403)', async () => {
+    // Create a company-admin user
+    await env.DB.exec("INSERT OR REPLACE INTO companies (id, name, email, primary_color, role) VALUES ('archive-co-admin', 'Archive CoAdmin', 'archivecoadmin@test.com', '#2563eb', 'company-admin');");
+    const coAdminCookie = await setupAndLogin('archivecoadmin@test.com', 'ArchiveCoAdmin1!');
+    const res = await app.request(`http://localhost/api/admin/companies/${archivableId}/archive`, {
+      method: 'PATCH',
+      headers: { Cookie: `session=${coAdminCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(403);
+  });
+});
+
+// ============================================================
+// Task 2 (10-01): Pricing validation
+// ============================================================
+
+describe('PUT /api/admin/companies/:companyId/pricing - validation', () => {
+  let sessionCookie: string;
+  const companyId = 'pricing-validation-company';
+
+  beforeAll(async () => {
+    await seedAdminData(env.DB);
+    await env.DB.exec(`INSERT OR REPLACE INTO companies (id, name, email, primary_color) VALUES ('${companyId}', 'Pricing Validation Co', 'pricingval@test.com', '#2563eb');`);
+    sessionCookie = await setupAndLogin('pricingval@test.com', 'PricingVal1!');
+  });
+
+  it('rejects costLow >= costHigh with 400', async () => {
+    const overrides = [{ materialKey: 'architectural', costLow: 5, costHigh: 3 }];
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify(overrides),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toMatch(/cost_low.*cost_high|less than/i);
+  });
+
+  it('rejects negative costLow with 400', async () => {
+    const overrides = [{ materialKey: 'architectural', costLow: -1, costHigh: 5 }];
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify(overrides),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBeTruthy();
+  });
+
+  it('rejects costHigh > 100 with 400', async () => {
+    const overrides = [{ materialKey: 'architectural', costLow: 5, costHigh: 1000 }];
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify(overrides),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBeTruthy();
+  });
+
+  it('rejects negative pitch multiplier with 400', async () => {
+    const overrides = [{ materialKey: 'architectural', costLow: 3, costHigh: 5, pitchFlat: -0.5 }];
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify(overrides),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBeTruthy();
+  });
+
+  it('rejects pitchSteep > 5 with 400', async () => {
+    const overrides = [{ materialKey: 'architectural', costLow: 3, costHigh: 5, pitchSteep: 20 }];
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify(overrides),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBeTruthy();
+  });
+
+  it('accepts valid pricing with costLow < costHigh and valid pitch (200)', async () => {
+    const overrides = [{ materialKey: 'architectural', costLow: 2, costHigh: 5, pitchFlat: 1.0 }];
+    const res = await app.request(`http://localhost/api/admin/companies/${companyId}/pricing`, {
+      method: 'PUT',
+      body: JSON.stringify(overrides),
+      headers: { 'Content-Type': 'application/json', Cookie: `session=${sessionCookie}`, Origin: 'http://localhost' },
+    }, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { success: boolean };
+    expect(body.success).toBe(true);
+  });
+});
+
 describe('GET /api/admin/companies/:companyId/stats', () => {
   let superAdminCookie: string;
   const companyId = 'stats-company';
