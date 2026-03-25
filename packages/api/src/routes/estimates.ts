@@ -12,6 +12,7 @@ import {
 import { createDb } from '../db';
 import { pricingOverrides, companies, leads } from '../db/schema';
 import { sendLeadNotification } from '../email/send-lead-notification';
+import { sendEstimateToCustomer } from '../email/send-estimate-to-customer';
 import type { Bindings, PricingConfig } from '../types';
 
 const estimates = new Hono<{ Bindings: Bindings }>();
@@ -88,8 +89,8 @@ estimates.post(
 
     const result = calculateEstimate(sqft, pitch, material, config);
 
-    // Store lead if contact fields provided with consent
-    if (validated.firstName && validated.lastName && validated.email && validated.phone && validated.consent) {
+    // Store lead if contact fields provided with consent (skip for demo)
+    if (companyId !== 'demo' && validated.firstName && validated.lastName && validated.email && validated.phone && validated.consent) {
       // Look up company name for consent text
       let companyName = 'the roofing company';
       let companyEmail = '';
@@ -121,7 +122,7 @@ estimates.post(
         address: validated.address ?? null,
       });
 
-      // Send email notification (non-blocking)
+      // Send lead notification to company (non-blocking)
       if (companyEmail && c.env.RESEND_API_KEY) {
         c.executionCtx.waitUntil(
           sendLeadNotification(c.env.RESEND_API_KEY, {
@@ -143,6 +144,29 @@ estimates.post(
             },
           }).catch((err) => {
             console.error('Lead notification email failed:', err);
+          })
+        );
+      }
+
+      // Send estimate copy to customer (non-blocking)
+      if (c.env.RESEND_API_KEY && validated.email) {
+        c.executionCtx.waitUntil(
+          sendEstimateToCustomer(c.env.RESEND_API_KEY, {
+            from: c.env.RESEND_FROM_EMAIL || 'estimates@notifications.example.com',
+            to: validated.email!,
+            companyName,
+            estimate: {
+              companyName,
+              firstName: validated.firstName!,
+              sqft,
+              pitch,
+              material,
+              estimateLow: result.estimateLow,
+              estimateHigh: result.estimateHigh,
+              address: validated.address,
+            },
+          }).catch((err) => {
+            console.error('Customer estimate email failed:', err);
           })
         );
       }
