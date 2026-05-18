@@ -22,10 +22,10 @@ companiesRoute.get('/', async (c) => {
         primaryColor: companies.primaryColor,
       })
       .from(companies)
-      .where(isNull(companies.archivedAt))
+      .where(and(isNull(companies.archivedAt), eq(companies.isOwner, false)))
       .limit(pageSize)
       .offset(offset),
-    db.select({ count: count() }).from(companies).where(isNull(companies.archivedAt)),
+    db.select({ count: count() }).from(companies).where(and(isNull(companies.archivedAt), eq(companies.isOwner, false))),
   ]);
   return c.json({ data: rows, total: totalResult[0].count, page, pageSize });
 });
@@ -43,7 +43,7 @@ companiesRoute.get('/by-slug/:slug', async (c) => {
       primaryColor: companies.primaryColor,
     })
     .from(companies)
-    .where(and(eq(companies.slug, slug), isNull(companies.archivedAt)))
+    .where(and(eq(companies.slug, slug), isNull(companies.archivedAt), eq(companies.isOwner, false)))
     .limit(1);
 
   if (rows.length === 0) {

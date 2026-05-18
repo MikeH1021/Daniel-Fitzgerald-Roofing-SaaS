@@ -36,7 +36,14 @@ export async function fetchCompanyConfig(companyId: string): Promise<{
     }
     throw new Error(message);
   }
-  return res.json();
+  const data = await res.json();
+  // Logos are stored as relative paths (/api/logos/:id). When the widget runs on a
+  // third-party page, the browser would resolve them against the embedding origin
+  // and 404. Anchor to the API origin we derived from the script src.
+  if (data.logoUrl && data.logoUrl.startsWith('/') && apiBase) {
+    data.logoUrl = `${apiBase}${data.logoUrl}`;
+  }
+  return data;
 }
 
 export async function fetchMapsKey(): Promise<string> {

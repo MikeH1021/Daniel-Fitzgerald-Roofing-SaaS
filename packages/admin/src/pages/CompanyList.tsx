@@ -52,6 +52,23 @@ export function CompanyList() {
     }
   };
 
+  const handlePurge = async (company: Company) => {
+    const confirmText = `Permanently delete "${company.name}" and all of its leads, pricing overrides, sessions, and logos? This cannot be undone.\n\nType the company name to confirm:`;
+    const typed = window.prompt(confirmText);
+    if (typed === null) return;
+    if (typed.trim() !== company.name) {
+      setError('Name did not match — purge cancelled.');
+      return;
+    }
+    try {
+      await api.purgeCompany(company.id);
+      loadCompanies(showArchived);
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete company.');
+    }
+  };
+
   if (loading) {
     return (
       <div>
@@ -141,13 +158,23 @@ export function CompanyList() {
                           </a>
                         )}
                         {c.archivedAt ? (
-                          <button
-                            class="btn btn-secondary"
-                            style={{ fontSize: '13px', padding: '4px 12px' }}
-                            onClick={() => handleRestore(c)}
-                          >
-                            Restore
-                          </button>
+                          <>
+                            <button
+                              class="btn btn-secondary"
+                              style={{ fontSize: '13px', padding: '4px 12px' }}
+                              onClick={() => handleRestore(c)}
+                            >
+                              Restore
+                            </button>
+                            <button
+                              class="btn-archive"
+                              style={{ color: '#ef4444', borderColor: '#ef4444' }}
+                              onClick={() => handlePurge(c)}
+                              title="Permanently delete (cannot be undone)"
+                            >
+                              Delete
+                            </button>
+                          </>
                         ) : (
                           <button
                             class="btn-archive"

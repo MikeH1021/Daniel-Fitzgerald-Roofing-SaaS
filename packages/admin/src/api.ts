@@ -146,6 +146,16 @@ export const api = {
     return res.json() as Promise<{ success: boolean }>;
   },
 
+  async purgeCompany(companyId: string, opts?: { force?: boolean }) {
+    const qs = opts?.force ? '?force=true' : '';
+    const res = await jsonRequest(`/companies/${companyId}/purge${qs}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error || 'Failed to purge company');
+    }
+    return res.json() as Promise<{ success: boolean }>;
+  },
+
   async restoreCompany(companyId: string) {
     const res = await jsonRequest(`/companies/${companyId}/restore`, { method: 'PATCH' });
     if (!res.ok) {

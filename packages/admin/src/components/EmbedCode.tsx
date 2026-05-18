@@ -1,26 +1,45 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
+
+const DEFAULT_MAX_WIDTH = 460;
 
 export function EmbedCode({ companyId }: { companyId?: string }) {
-  const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [origin, setOrigin] = useState('');
+  const [maxWidth, setMaxWidth] = useState<string>(String(DEFAULT_MAX_WIDTH));
+  const [width, setWidth] = useState<string>('100%');
   const mountedRef = useRef(true);
   const copyTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (companyId) {
-      // Generate embed code client-side for company-scoped view
-      const origin = window.location.origin;
-      setCode(`<script src="${origin}/widget/roofing-widget.js" data-company-id="${companyId}"></script>`);
-      setLoading(false);
-    } else {
-      setLoading(false);
+      setOrigin(window.location.origin);
     }
+    setLoading(false);
     return () => {
       mountedRef.current = false;
       clearTimeout(copyTimer.current);
     };
   }, [companyId]);
+
+  // Only emit data-* attributes when the user changed them from defaults — keeps the
+  // copy-paste snippet minimal for the common case.
+  const code = useMemo(() => {
+    if (!companyId || !origin) return '';
+    const attrs: string[] = [
+      `src="${origin}/widget/roofing-widget.js"`,
+      `data-company-id="${companyId}"`,
+    ];
+    const trimmedMaxWidth = maxWidth.trim();
+    if (trimmedMaxWidth && trimmedMaxWidth !== String(DEFAULT_MAX_WIDTH)) {
+      attrs.push(`data-max-width="${trimmedMaxWidth}"`);
+    }
+    const trimmedWidth = width.trim();
+    if (trimmedWidth && trimmedWidth !== '100%') {
+      attrs.push(`data-width="${trimmedWidth}"`);
+    }
+    return `<script ${attrs.join(' ')}></script>`;
+  }, [companyId, origin, maxWidth, width]);
 
   const handleCopy = async () => {
     try {
@@ -68,6 +87,38 @@ export function EmbedCode({ companyId }: { companyId?: string }) {
           </div>
         </div>
 
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div class="field" style={{ marginBottom: 0 }}>
+            <label class="field-label" for="embed-max-width">Max width</label>
+            <input
+              id="embed-max-width"
+              class="input"
+              type="text"
+              inputMode="numeric"
+              value={maxWidth}
+              placeholder={String(DEFAULT_MAX_WIDTH)}
+              onInput={(e) => setMaxWidth((e.target as HTMLInputElement).value)}
+            />
+            <p class="card-description" style={{ marginTop: '6px' }}>
+              Pixels by default. Use <code>460</code>, <code>500px</code>, or <code>30rem</code>. Below 320 may crop content.
+            </p>
+          </div>
+          <div class="field" style={{ marginBottom: 0 }}>
+            <label class="field-label" for="embed-width">Width</label>
+            <input
+              id="embed-width"
+              class="input"
+              type="text"
+              value={width}
+              placeholder="100%"
+              onInput={(e) => setWidth((e.target as HTMLInputElement).value)}
+            />
+            <p class="card-description" style={{ marginTop: '6px' }}>
+              How wide the widget fills its container. <code>100%</code> is responsive.
+            </p>
+          </div>
+        </div>
+
         <div class="code-block">
           <code>{code}</code>
           <button
@@ -75,7 +126,7 @@ export function EmbedCode({ companyId }: { companyId?: string }) {
             onClick={handleCopy}
             aria-label={copied ? 'Copied to clipboard' : 'Copy embed code to clipboard'}
           >
-            {copied ? '\u2713 Copied' : 'Copy'}
+            {copied ? '✓ Copied' : 'Copy'}
           </button>
         </div>
       </div>

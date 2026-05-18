@@ -23,7 +23,7 @@ config.get('/:companyId', async (c) => {
   const results = await db
     .select()
     .from(companies)
-    .where(and(eq(companies.id, companyId), isNull(companies.archivedAt)));
+    .where(and(eq(companies.id, companyId), isNull(companies.archivedAt), eq(companies.isOwner, false)));
 
   if (results.length === 0) {
     return c.json({ error: 'Company not found' }, 404);

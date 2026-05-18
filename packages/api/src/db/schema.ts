@@ -12,6 +12,9 @@ export const companies = sqliteTable('companies', {
   createdAt: text('created_at').default("(datetime('now'))"),
   updatedAt: text('updated_at').default("(datetime('now'))"),
   archivedAt: text('archived_at'),
+  // Marks the workspace owner (super-admin). Excluded from client listings and
+  // protected from archive/purge. Not a client tenant — does not serve a public widget.
+  isOwner: integer('is_owner', { mode: 'boolean' }).notNull().default(false),
 });
 
 export const adminSessions = sqliteTable('admin_sessions', {

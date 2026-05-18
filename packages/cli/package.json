@@ -1,0 +1,12 @@
+{
+  "name": "roofer-cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "roofer": "./bin/roofer.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "commander": "^12.1.0"
+  }
+}

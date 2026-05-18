@@ -66,4 +66,58 @@ describe('Widget Initialization', () => {
 
     script.remove();
   });
+
+  it('dimensions: data-max-width and data-width apply to host and CSS vars on render root', async () => {
+    const { initWidget } = await import('../src/index');
+
+    const script = document.createElement('script');
+    script.setAttribute('data-company-id', 'test-co');
+    script.setAttribute('data-max-width', '600');
+    script.setAttribute('data-width', '90%');
+    document.body.appendChild(script);
+
+    initWidget(script);
+
+    const host = document.getElementById('roofing-widget-host') as HTMLElement;
+    expect(host.style.maxWidth).toBe('600px');
+    expect(host.style.width).toBe('90%');
+
+    const root = host.shadowRoot!.getElementById('roofing-widget-root') as HTMLElement;
+    expect(root.style.getPropertyValue('--rc-max-width')).toBe('600px');
+    expect(root.style.getPropertyValue('--rc-width')).toBe('90%');
+
+    script.remove();
+  });
+
+  it('dimensions: explicit units pass through unchanged', async () => {
+    const { initWidget } = await import('../src/index');
+
+    const script = document.createElement('script');
+    script.setAttribute('data-company-id', 'test-co');
+    script.setAttribute('data-max-width', '30rem');
+    document.body.appendChild(script);
+
+    initWidget(script);
+
+    const host = document.getElementById('roofing-widget-host') as HTMLElement;
+    expect(host.style.maxWidth).toBe('30rem');
+
+    script.remove();
+  });
+
+  it('dimensions: omitted attrs leave host inline styles empty (defaults apply via CSS)', async () => {
+    const { initWidget } = await import('../src/index');
+
+    const script = document.createElement('script');
+    script.setAttribute('data-company-id', 'test-co');
+    document.body.appendChild(script);
+
+    initWidget(script);
+
+    const host = document.getElementById('roofing-widget-host') as HTMLElement;
+    expect(host.style.maxWidth).toBe('');
+    expect(host.style.width).toBe('');
+
+    script.remove();
+  });
 });

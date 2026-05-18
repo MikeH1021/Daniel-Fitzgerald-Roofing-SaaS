@@ -7,6 +7,7 @@ export type Bindings = {
   LOGOS_BUCKET: R2Bucket;
   API_BASE_URL?: string;
   GOOGLE_MAPS_API_KEY?: string;
+  CLI_SECRET?: string;
   __STATIC_CONTENT: KVNamespace;
 };
 

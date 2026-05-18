@@ -10,7 +10,7 @@ import { authMiddleware, superAdminOnly, companyAccessGuard } from '../middlewar
 import { csrfMiddleware } from '../middleware/csrf';
 import { loginRateLimiter } from '../middleware/rate-limit';
 import { createDb } from '../db';
-import { companies, pricingOverrides, leads } from '../db/schema';
+import { companies, pricingOverrides, leads, adminSessions } from '../db/schema';
 import { hashPassword, verifyPassword } from '../auth/password';
 import { createSession, deleteSession } from '../auth/session';
 
@@ -203,13 +203,15 @@ admin.get('/companies', superAdminOnly, async (c) => {
     archivedAt: companies.archivedAt,
   };
 
+  const activeFilter = and(isNull(companies.archivedAt), eq(companies.isOwner, false));
+  const allFilter = eq(companies.isOwner, false);
   const [rows, totalResult] = await Promise.all([
     includeArchived
-      ? db.select(baseSelect).from(companies).limit(pageSize).offset(offset)
-      : db.select(baseSelect).from(companies).where(isNull(companies.archivedAt)).limit(pageSize).offset(offset),
+      ? db.select(baseSelect).from(companies).where(allFilter).limit(pageSize).offset(offset)
+      : db.select(baseSelect).from(companies).where(activeFilter).limit(pageSize).offset(offset),
     includeArchived
-      ? db.select({ count: count() }).from(companies)
-      : db.select({ count: count() }).from(companies).where(isNull(companies.archivedAt)),
+      ? db.select({ count: count() }).from(companies).where(allFilter)
+      : db.select({ count: count() }).from(companies).where(activeFilter),
   ]);
   return c.json({ data: rows, total: totalResult[0].count, page, pageSize });
 });
@@ -244,17 +246,52 @@ admin.patch('/companies/:companyId', companyAccessGuard, zValidator('json', upda
 admin.patch('/companies/:companyId/archive', superAdminOnly, async (c) => {
   const companyId = c.req.param('companyId');
   const db = createDb(c.env.DB);
-  const rows = await db.select({ archivedAt: companies.archivedAt }).from(companies).where(eq(companies.id, companyId)).limit(1);
+  const rows = await db.select({ archivedAt: companies.archivedAt }).from(companies).where(and(eq(companies.id, companyId), eq(companies.isOwner, false))).limit(1);
   if (rows.length === 0) return c.json({ error: 'Company not found' }, 404);
   if (rows[0].archivedAt !== null) return c.json({ error: 'Company is already archived' }, 409);
   await db.update(companies).set({ archivedAt: sql`(datetime('now'))` }).where(eq(companies.id, companyId));
   return c.json({ success: true });
 });
 
+// Hard delete — super-admin only. Requires the company to be archived first
+// unless `?force=true`. Also removes logos from R2 and all FK-referencing rows.
+admin.delete('/companies/:companyId/purge', superAdminOnly, async (c) => {
+  const companyId = c.req.param('companyId');
+  const force = c.req.query('force') === 'true';
+  const db = createDb(c.env.DB);
+  const rows = await db
+    .select({ id: companies.id, archivedAt: companies.archivedAt })
+    .from(companies)
+    .where(and(eq(companies.id, companyId), eq(companies.isOwner, false)))
+    .limit(1);
+  if (rows.length === 0) return c.json({ error: 'Company not found' }, 404);
+  if (!force && rows[0].archivedAt === null) {
+    return c.json(
+      { error: 'Refusing to purge non-archived company. Archive it first, or pass ?force=true.' },
+      409,
+    );
+  }
+
+  try {
+    const listed = await c.env.LOGOS_BUCKET.list({ prefix: `${companyId}/` });
+    for (const obj of listed.objects) {
+      await c.env.LOGOS_BUCKET.delete(obj.key);
+    }
+  } catch {
+    // ignore — the row will still be removed below
+  }
+
+  await db.delete(adminSessions).where(eq(adminSessions.companyId, companyId));
+  await db.delete(pricingOverrides).where(eq(pricingOverrides.companyId, companyId));
+  await db.delete(leads).where(eq(leads.companyId, companyId));
+  await db.delete(companies).where(eq(companies.id, companyId));
+  return c.json({ success: true });
+});
+
 admin.patch('/companies/:companyId/restore', superAdminOnly, async (c) => {
   const companyId = c.req.param('companyId');
   const db = createDb(c.env.DB);
-  const rows = await db.select({ archivedAt: companies.archivedAt }).from(companies).where(eq(companies.id, companyId)).limit(1);
+  const rows = await db.select({ archivedAt: companies.archivedAt }).from(companies).where(and(eq(companies.id, companyId), eq(companies.isOwner, false))).limit(1);
   if (rows.length === 0) return c.json({ error: 'Company not found' }, 404);
   if (rows[0].archivedAt === null) return c.json({ error: 'Company is not archived' }, 409);
   await db.update(companies).set({ archivedAt: null }).where(eq(companies.id, companyId));

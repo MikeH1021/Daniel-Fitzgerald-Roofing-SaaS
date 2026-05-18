@@ -4,6 +4,7 @@ import type { Bindings } from './types';
 import { estimates } from './routes/estimates';
 import { config } from './routes/config';
 import { admin } from './routes/admin';
+import { cli } from './routes/cli';
 import { maps } from './routes/maps';
 import { companiesRoute } from './routes/companies';
 
@@ -22,6 +23,7 @@ app.get('/', async (c) => {
 app.route('/api/estimates', estimates);
 app.route('/api/config', config);
 app.route('/api/admin', admin);
+app.route('/api/cli', cli);
 app.route('/api/maps', maps);
 app.route('/api/companies', companiesRoute);
 

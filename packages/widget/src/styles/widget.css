@@ -40,8 +40,9 @@
   --rc-radius: 10px;
   --rc-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  max-width: 460px;
-  width: 100%;
+  /* Defaults; overridable via host inline style or data-* attrs on the script tag. */
+  max-width: var(--rc-max-width, 460px);
+  width: var(--rc-width, 100%);
   background: var(--rc-bg);
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
